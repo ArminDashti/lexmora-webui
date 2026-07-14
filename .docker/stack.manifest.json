@@ -1,0 +1,7 @@
+{
+  "stackName": "translator-webui",
+  "webImageTag": "translator-webui:latest",
+  "webPublishPort": "8082",
+  "apiHost": "translator-api",
+  "apiPort": "8080"
+}
