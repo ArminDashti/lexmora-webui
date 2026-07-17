@@ -24,7 +24,7 @@ function logout() {
     <header class="border-b border-surface-border bg-surface-raised">
       <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
         <div class="flex items-center gap-8">
-          <h1 class="text-lg font-semibold text-white">Translator</h1>
+          <h1 class="text-lg font-semibold text-white">Lexmora</h1>
           <nav class="flex gap-1">
             <RouterLink
               v-for="link in links"

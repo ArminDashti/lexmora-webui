@@ -1,7 +1,7 @@
 {
-  "stackName": "translator-webui",
-  "webImageTag": "translator-webui:latest",
+  "stackName": "lexmora-webui",
+  "webImageTag": "lexmora-webui:latest",
   "webPublishPort": "8082",
-  "apiHost": "translator-api",
+  "apiHost": "lexmora-api",
   "apiPort": "8080"
 }

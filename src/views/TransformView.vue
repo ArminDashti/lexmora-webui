@@ -2,10 +2,12 @@
 import { computed, ref, watch } from 'vue'
 import { api, type TransformResult } from '../api/client'
 
-type Operation = 'translate' | 'simplify' | 'term' | 'refine' | 'symptoms'
+type Operation = 'translate' | 'simplify' | 'term' | 'refine' | 'symptoms' | 'compare'
 
 const operation = ref<Operation>('translate')
 const text = ref('')
+const text1 = ref('')
+const text2 = ref('')
 const direction = ref('en-fa')
 const mode = ref('general')
 const movieName = ref('')
@@ -22,6 +24,7 @@ const operations = [
   { value: 'term', label: 'Term' },
   { value: 'refine', label: 'Refine' },
   { value: 'symptoms', label: 'Symptoms' },
+  { value: 'compare', label: 'Compare' },
 ]
 
 const enFaModes = [
@@ -52,6 +55,13 @@ const translateModes = computed(() =>
   direction.value === 'en-fa' ? enFaModes : faEnModes
 )
 
+const canSubmit = computed(() => {
+  if (operation.value === 'compare') {
+    return text1.value.trim().length > 0 && text2.value.trim().length > 0
+  }
+  return text.value.trim().length > 0
+})
+
 watch(direction, () => {
   const valid = translateModes.value.some((m) => m.value === mode.value)
   if (!valid) mode.value = 'general'
@@ -64,18 +74,25 @@ async function submit() {
 
   const payload: Record<string, unknown> = {
     operation: operation.value,
-    text: text.value,
   }
 
-  if (operation.value === 'translate') {
-    payload.direction = direction.value
-    payload.mode = mode.value
-    if (showMovieField.value) payload.movie_name = movieName.value
-  } else if (operation.value === 'term') {
+  if (operation.value === 'compare') {
+    payload.text1 = text1.value
+    payload.text2 = text2.value
     payload.language = language.value
-    payload.style = style.value
-  } else if (operation.value === 'refine') {
-    payload.style = style.value
+  } else {
+    payload.text = text.value
+
+    if (operation.value === 'translate') {
+      payload.direction = direction.value
+      payload.mode = mode.value
+      if (showMovieField.value) payload.movie_name = movieName.value
+    } else if (operation.value === 'term') {
+      payload.language = language.value
+      payload.style = style.value
+    } else if (operation.value === 'refine') {
+      payload.style = style.value
+    }
   }
 
   try {
@@ -156,9 +173,40 @@ async function submit() {
             </select>
           </div>
         </template>
+
+        <template v-if="operation === 'compare'">
+          <div>
+            <label class="mb-1 block text-sm text-gray-400">Explanation language</label>
+            <select v-model="language" class="select-field">
+              <option value="en">English</option>
+              <option value="fa">Persian</option>
+            </select>
+          </div>
+        </template>
       </div>
 
-      <div>
+      <template v-if="operation === 'compare'">
+        <div class="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label class="mb-1 block text-sm text-gray-400">First word / phrase</label>
+            <input
+              v-model="text1"
+              class="input-field"
+              placeholder="e.g. ask"
+            />
+          </div>
+          <div>
+            <label class="mb-1 block text-sm text-gray-400">Second word / phrase</label>
+            <input
+              v-model="text2"
+              class="input-field"
+              placeholder="e.g. request"
+            />
+          </div>
+        </div>
+      </template>
+
+      <div v-else>
         <label class="mb-1 block text-sm text-gray-400">Input text</label>
         <textarea
           v-model="text"
@@ -170,7 +218,7 @@ async function submit() {
 
       <p v-if="error" class="text-sm text-red-400">{{ error }}</p>
 
-      <button class="btn-primary" :disabled="loading || !text.trim()" @click="submit">
+      <button class="btn-primary" :disabled="loading || !canSubmit" @click="submit">
         {{ loading ? 'Processing...' : 'Transform' }}
       </button>
     </div>

@@ -1,5 +1,5 @@
-const TOKEN_KEY = 'translator_token'
-const USERNAME_KEY = 'translator_username'
+const TOKEN_KEY = 'lexmora_token'
+const USERNAME_KEY = 'lexmora_username'
 
 export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY)
@@ -110,6 +110,7 @@ export interface TransformResult {
   result_text: string
   model: string
   instruction_key: string
+  created_at?: string
   formatted_date: string
 }
 
@@ -122,6 +123,7 @@ export interface HistoryRecord {
   model: string
   instruction_key: string
   metadata?: Record<string, string>
+  created_at?: string
   formatted_date: string
 }
 
@@ -132,6 +134,7 @@ export interface StatsBucket {
   term: number
   refine: number
   symptoms: number
+  compare: number
   total: number
 }
 

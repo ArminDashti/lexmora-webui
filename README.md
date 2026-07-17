@@ -1,8 +1,8 @@
-# Translator Web UI
+# Lexmora Web UI
 
-Vue 3 frontend for the Translator app: dark-themed SPA for login, transforms, history, instructions, stats, and settings.
+Vue 3 frontend for the Lexmora app: dark-themed SPA for login, transforms, history, instructions, stats, and settings.
 
-Companion API: [translator-api](https://github.com/ArminDashti/translator-api)
+Companion API: [lexmora-api](https://github.com/ArminDashti/lexmora-api)
 
 ## Stack
 
@@ -14,7 +14,7 @@ Companion API: [translator-api](https://github.com/ArminDashti/translator-api)
 ## Prerequisites
 
 - Node.js 18+
-- Running [translator-api](https://github.com/ArminDashti/translator-api) instance
+- Running [lexmora-api](https://github.com/ArminDashti/lexmora-api) instance
 
 ## Setup
 
@@ -30,7 +30,7 @@ npm install
 cp .env.example .env
 ```
 
-3. Start the API (from `translator-api`), then run the dev server:
+3. Start the API (from `lexmora-api`), then run the dev server:
 
 ```bash
 npm run dev
@@ -71,18 +71,18 @@ See [docs/modules/frontend.md](docs/modules/frontend.md).
 Ensure the API stack is running on the shared Docker network, then start the web UI:
 
 ```bash
-docker network create translator-net
+docker network create lexmora-net
 docker compose up -d --build
 ```
 
-Open [http://localhost:8082](http://localhost:8082). nginx proxies `/api/` to `${API_HOST}:${API_PORT}` (defaults: `translator-api:8080`).
+Open [http://localhost:8082](http://localhost:8082). nginx proxies `/api/` to `${API_HOST}:${API_PORT}` (defaults: `lexmora-api:8080`).
 
 | Variable | Description |
 |----------|-------------|
 | `WEB_PUBLISH_PORT` | Host port for the UI (default `8082`) |
 | `API_HOST` | API hostname on the Docker network |
 | `API_PORT` | API port on the Docker network |
-| `DOCKER_NETWORK` | Shared network name (default `translator-net`) |
+| `DOCKER_NETWORK` | Shared network name (default `lexmora-net`) |
 
 ## Project structure
 

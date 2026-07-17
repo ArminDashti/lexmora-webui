@@ -1,35 +1,39 @@
 # Docker deployment
 
-Web UI nginx container from this repo. The API and PostgreSQL run separately from [translator-api](https://github.com/ArminDashti/translator-api).
+Web UI nginx container from this repo. The API and PostgreSQL run separately from [lexmora-api](https://github.com/ArminDashti/lexmora-api).
 
 ## Files
 
 | File | Purpose |
 |------|---------|
 | `Dockerfile` | Vue build + nginx image |
-| `docker-compose.yml` | `web` service on external `translator-net` |
+| `docker-compose.yml` | `web` service on external `lexmora-net` |
 | `nginx.conf.template` | Proxies `/api/` to the API container |
 | `.docker/stack.manifest.json` | Image tags and ports |
+| `create-image.ps1` | Build `lexmora-webui` image |
+| `run-on-docker-local.ps1` | Local Docker deploy |
+| `run-on-docker-server.ps1` | Remote deploy over SSH |
 
 ## Service
 
 | Service | Container | Host port | Notes |
 |---------|-----------|-----------|-------|
-| `web` | `translator-webui` | 8082 | Serves static UI; proxies `/api/*` → `${API_HOST}:${API_PORT}` |
+| `web` | `lexmora-webui` | random `30000-32767` (or `--internal-port`) | Serves static UI; proxies `/api/*` → `${API_HOST}:${API_PORT}` |
 
 ## Local run
 
-```bash
-docker network create translator-net
-# Start translator-api first, then:
-docker compose up -d --build
+```powershell
+.\run-on-docker-local.ps1
+.\run-on-docker-local.ps1 --internal-port=30042
+.\run-on-docker-server.ps1 --ssh-string=<alias>
+.\create-image.ps1 --help
 ```
 
-Open [http://localhost:8082](http://localhost:8082).
+API stack must be on `lexmora-net` first. Scripts create the network if missing.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `API_HOST` | `translator-api` | API hostname on Docker network |
+| `API_HOST` | `lexmora-api` | API hostname on Docker network |
 | `API_PORT` | `8080` | API port |
-| `WEB_PUBLISH_PORT` | `8082` | Host port for the UI |
-| `DOCKER_NETWORK` | `translator-net` | Shared network with the API stack |
+| `WEB_PUBLISH_PORT` | from `--internal-port` or random | Host port for the UI |
+| `DOCKER_NETWORK` | `lexmora-net` | Shared network with the API stack |
