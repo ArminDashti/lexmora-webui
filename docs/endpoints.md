@@ -1,3 +1,15 @@
+# Endpoints / Commands
+
+This repo exposes deployment entry points via PowerShell scripts under `.deploy/docker/`.
+
+## Docker deploy (local)
+- Command: `.deploy/docker/run-on-docker-local.ps1`
+- Behavior: reads `.deploy/docker/run-on-docker-local.yaml`, builds the image locally, ensures the external network exists, then runs `docker compose up -d`.
+
+## Docker deploy (remote)
+- Command: `.deploy/docker/run-on-docker-server.ps1`
+- Behavior: reads `.deploy/docker/run-on-docker-server.yaml`, connects over SSH, ensures remote directories/network, then runs `docker compose up -d`.
+- Note: you must fill `ssh` and `volume_dir` placeholders in the YAML before running.
 # API Endpoints
 
 Consumed from [lexmora-api](https://github.com/ArminDashti/lexmora-api). All authenticated routes require `Authorization: Bearer <jwt>`.

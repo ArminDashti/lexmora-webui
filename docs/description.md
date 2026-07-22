@@ -1,3 +1,19 @@
+# Translator WebUI
+
+Frontend web UI (Vue/Node) packaged as an Nginx container. Deployment is provided via Docker Compose and the helper scripts in `.deploy/docker/`.
+
+## Tech stack
+- Node.js (build) + Vue/Vite (frontend build)
+- Nginx (static file serving)
+- Docker / Docker Compose for runtime
+
+## Local run (Docker)
+- Edit `.deploy/docker/run-on-docker-local.yaml` (or keep defaults)
+- Run `.deploy/docker/run-on-docker-local.ps1` to build `lexmora-webui:latest`, ensure the external Docker network exists, and start the stack.
+
+## Docker files
+- `Dockerfile` builds the frontend and copies the built `dist/` into Nginx.
+- `docker-compose.yml` runs the `lexmora-webui` service and publishes port `8082` by default via `WEB_PUBLISH_PORT`.
 # Lexmora Web UI
 
 

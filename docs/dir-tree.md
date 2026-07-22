@@ -1,3 +1,25 @@
+# Directory Tree (relevant to this change)
+
+This file only documents the directories/files relevant to the Docker deploy assets introduced in this change.
+
+```
+.
+├── Dockerfile                            # Builds the Nginx image
+├── docker-compose.yml                   # Runs lexmora-webui, publishes via WEB_PUBLISH_PORT
+├── .deploy/
+│   └── docker/
+│       ├── run-on-docker-local.ps1    # Local Docker deploy (YAML-only)
+│       ├── run-on-docker-local.yaml    # Local deploy config
+│       ├── run-on-docker-server.ps1    # Remote Docker deploy over SSH (YAML-only)
+│       └── run-on-docker-server.yaml   # Remote deploy config
+└── docs/
+    ├── description.md
+    ├── endpoints.md
+    ├── dir-tree.md
+    └── modules/
+```
+
+TODO: regenerate the complete project tree when preparing a broader documentation sync.
 lexmora-webui/
 ├── public/
 │   ├── apple-touch-icon.png        # iOS home-screen icon
