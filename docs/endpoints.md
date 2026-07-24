@@ -1,26 +1,18 @@
 # Endpoints / Commands
 
-This repo exposes deployment entry points via PowerShell scripts under `.deploy/docker/`.
-
-## Docker deploy (local)
-- Command: `.deploy/docker/run-on-docker-local.ps1`
-- Behavior: reads `.deploy/docker/run-on-docker-local.yaml`, builds the image locally, ensures the external network exists, then runs `docker compose up -d`.
-
-## Docker deploy (remote)
-- Command: `.deploy/docker/run-on-docker-server.ps1`
-- Behavior: reads `.deploy/docker/run-on-docker-server.yaml`, connects over SSH, ensures remote directories/network, then runs `docker compose up -d`.
-- Note: you must fill `ssh` and `volume_dir` placeholders in the YAML before running.
-# API Endpoints
-
-Consumed from [lexmora-api](https://github.com/ArminDashti/lexmora-api). All authenticated routes require `Authorization: Bearer <jwt>`.
-
 ## Docker deploy scripts
+
+Entry point: `.armin/docker-scripts/` (YAML-only; no CLI flags).
 
 | Command | Auth | Description |
 |---------|------|-------------|
-| `.\create-image.ps1` | No | Build `lexmora-webui` image |
-| `.\run-on-docker-local.ps1` | No | Deploy on local Docker daemon |
-| `.\run-on-docker-server.ps1 --ssh-string=<alias>` | SSH | Deploy on remote Docker over SSH |
+| `.\.armin\docker-scripts\run-on-docker-local.ps1` | No | Local deploy: build, force-recreate on `t3-net`, publish `publish_port` |
+| `.\.armin\docker-scripts\run-on-docker-server.ps1` | SSH (`t3`) | Remote deploy to Irancell-T3; YAML has `ssh: "ssh t3"` + `volume_dir` |
+| `.\create-image.ps1` | No | Build `lexmora-webui` image only |
+
+# API Endpoints
+
+Consumed from [lexmora-api](https://github.com/ArminDashti/lexmora-api). All authenticated routes require `Authorization: Bearer <jwt>`.
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|

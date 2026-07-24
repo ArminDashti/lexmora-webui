@@ -37,11 +37,6 @@ onMounted(async () => {
 
 <template>
   <div class="space-y-6">
-    <div>
-      <h2 class="text-xl font-semibold text-white">Stats</h2>
-      <p class="text-sm text-gray-400">Request counts by operation type</p>
-    </div>
-
     <div v-if="loading" class="text-gray-500">Loading...</div>
     <div v-else-if="error" class="text-red-400">{{ error }}</div>
 

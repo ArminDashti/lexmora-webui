@@ -60,11 +60,6 @@ onMounted(load)
 
 <template>
   <div class="space-y-6">
-    <div>
-      <h2 class="text-xl font-semibold text-white">Settings</h2>
-      <p class="text-sm text-gray-400">OpenRouter configuration and data management</p>
-    </div>
-
     <div v-if="loading" class="text-gray-500">Loading...</div>
 
     <div v-else class="card max-w-xl space-y-4">

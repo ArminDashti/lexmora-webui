@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { api, type TransformResult } from '../api/client'
+import MarkdownPreview from '../components/MarkdownPreview.vue'
+import { formatLocalDateTime } from '../utils/datetime'
+import { textDir } from '../utils/textDirection'
 
 type Operation = 'translate' | 'simplify' | 'term' | 'refine' | 'symptoms' | 'compare'
 
@@ -11,7 +14,6 @@ const text2 = ref('')
 const direction = ref('en-fa')
 const mode = ref('general')
 const movieName = ref('')
-const language = ref('en')
 const style = ref('everyday')
 
 const loading = ref(false)
@@ -62,6 +64,16 @@ const canSubmit = computed(() => {
   return text.value.trim().length > 0
 })
 
+const inputDir = computed(() => textDir(text.value))
+const text1Dir = computed(() => textDir(text1.value))
+const text2Dir = computed(() => textDir(text2.value))
+
+const resultDate = computed(() =>
+  result.value
+    ? formatLocalDateTime(result.value.created_at, result.value.formatted_date)
+    : ''
+)
+
 watch(direction, () => {
   const valid = translateModes.value.some((m) => m.value === mode.value)
   if (!valid) mode.value = 'general'
@@ -79,7 +91,7 @@ async function submit() {
   if (operation.value === 'compare') {
     payload.text1 = text1.value
     payload.text2 = text2.value
-    payload.language = language.value
+    payload.language = 'en'
   } else {
     payload.text = text.value
 
@@ -88,7 +100,6 @@ async function submit() {
       payload.mode = mode.value
       if (showMovieField.value) payload.movie_name = movieName.value
     } else if (operation.value === 'term') {
-      payload.language = language.value
       payload.style = style.value
     } else if (operation.value === 'refine') {
       payload.style = style.value
@@ -107,16 +118,11 @@ async function submit() {
 
 <template>
   <div class="space-y-6">
-    <div>
-      <h2 class="text-xl font-semibold text-white">Transform</h2>
-      <p class="text-sm text-gray-400">Run AI-powered language operations</p>
-    </div>
-
     <div class="card space-y-4">
-      <div class="grid gap-4 sm:grid-cols-2">
-        <div>
+      <div class="flex flex-wrap items-end gap-3">
+        <div class="w-full max-w-[11rem]">
           <label class="mb-1 block text-sm text-gray-400">Operation</label>
-          <select v-model="operation" class="select-field">
+          <select v-model="operation" class="select-field select-compact">
             <option v-for="op in operations" :key="op.value" :value="op.value">
               {{ op.label }}
             </option>
@@ -124,38 +130,27 @@ async function submit() {
         </div>
 
         <template v-if="operation === 'translate'">
-          <div>
+          <div class="w-full max-w-[11rem]">
             <label class="mb-1 block text-sm text-gray-400">Direction</label>
-            <select v-model="direction" class="select-field">
+            <select v-model="direction" class="select-field select-compact">
               <option value="en-fa">EN → FA</option>
               <option value="fa-en">FA → EN</option>
             </select>
           </div>
-          <div>
+          <div class="w-full max-w-[11rem]">
             <label class="mb-1 block text-sm text-gray-400">Mode</label>
-            <select v-model="mode" class="select-field">
+            <select v-model="mode" class="select-field select-compact">
               <option v-for="m in translateModes" :key="m.value" :value="m.value">
                 {{ m.label }}
               </option>
             </select>
           </div>
-          <div v-if="showMovieField">
-            <label class="mb-1 block text-sm text-gray-400">Movie name</label>
-            <input v-model="movieName" class="input-field" placeholder="e.g. The Godfather" />
-          </div>
         </template>
 
         <template v-if="operation === 'term'">
-          <div>
-            <label class="mb-1 block text-sm text-gray-400">Language</label>
-            <select v-model="language" class="select-field">
-              <option value="en">English prompt</option>
-              <option value="fa">Persian prompt</option>
-            </select>
-          </div>
-          <div>
+          <div class="w-full max-w-[11rem]">
             <label class="mb-1 block text-sm text-gray-400">Style</label>
-            <select v-model="style" class="select-field">
+            <select v-model="style" class="select-field select-compact">
               <option v-for="s in styleOptions" :key="s.value" :value="s.value">
                 {{ s.label }}
               </option>
@@ -164,25 +159,20 @@ async function submit() {
         </template>
 
         <template v-if="operation === 'refine'">
-          <div>
+          <div class="w-full max-w-[11rem]">
             <label class="mb-1 block text-sm text-gray-400">Style</label>
-            <select v-model="style" class="select-field">
+            <select v-model="style" class="select-field select-compact">
               <option v-for="s in styleOptions" :key="s.value" :value="s.value">
                 {{ s.label }}
               </option>
             </select>
           </div>
         </template>
+      </div>
 
-        <template v-if="operation === 'compare'">
-          <div>
-            <label class="mb-1 block text-sm text-gray-400">Explanation language</label>
-            <select v-model="language" class="select-field">
-              <option value="en">English</option>
-              <option value="fa">Persian</option>
-            </select>
-          </div>
-        </template>
+      <div v-if="showMovieField" class="max-w-md">
+        <label class="mb-1 block text-sm text-gray-400">Movie name</label>
+        <input v-model="movieName" class="input-field" placeholder="e.g. The Godfather" />
       </div>
 
       <template v-if="operation === 'compare'">
@@ -192,6 +182,7 @@ async function submit() {
             <input
               v-model="text1"
               class="input-field"
+              :dir="text1Dir"
               placeholder="e.g. ask"
             />
           </div>
@@ -200,6 +191,7 @@ async function submit() {
             <input
               v-model="text2"
               class="input-field"
+              :dir="text2Dir"
               placeholder="e.g. request"
             />
           </div>
@@ -212,6 +204,7 @@ async function submit() {
           v-model="text"
           rows="6"
           class="input-field resize-y"
+          :dir="inputDir"
           placeholder="Enter text to transform..."
         />
       </div>
@@ -227,13 +220,11 @@ async function submit() {
       <div class="flex flex-wrap items-center gap-3 text-sm text-gray-400">
         <span class="rounded bg-accent/20 px-2 py-0.5 text-accent">{{ result.type_display }}</span>
         <span>{{ result.model }}</span>
-        <span>{{ result.formatted_date }}</span>
+        <span>{{ resultDate }}</span>
       </div>
       <div>
         <h3 class="mb-1 text-sm font-medium text-gray-400">Result</h3>
-        <p class="whitespace-pre-wrap rounded-lg border border-surface-border bg-surface p-4 text-gray-100">
-          {{ result.result_text }}
-        </p>
+        <MarkdownPreview :content="result.result_text" />
       </div>
     </div>
   </div>

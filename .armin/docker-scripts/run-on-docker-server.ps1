@@ -3,7 +3,7 @@
   Deploy stack to a remote host over SSH using sibling YAML only.
 
 .DESCRIPTION
-  Sample for .armin/docker-scripts/run-on-docker-server.ps1.
+  Remote deploy script for .armin/docker-scripts/run-on-docker-server.yaml.
   Reads run-on-docker-server.yaml — no CLI -- flags.
   Flow when build_image_on is local: build locally → docker save → SCP → remote docker load → sync files → remote compose up -d.
   Flow when build_image_on is server: sync repo to remote → remote docker build → remote compose up -d.
@@ -12,7 +12,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $DeployDir = $PSScriptRoot
-$RepoRoot = (Resolve-Path (Join-Path $DeployDir '../..')).Path
+$RepoRoot = [System.IO.Path]::GetFullPath((Join-Path $DeployDir '../..'))
 $ConfigPath = Join-Path $DeployDir 'run-on-docker-server.yaml'
 
 function Write-Step([string]$Message) {
@@ -42,6 +42,8 @@ CONFIG:
   compose_file        Compose path relative to .armin/docker-scripts
   dockerfile          Dockerfile path relative to .armin/docker-scripts
   docker_network      External Docker network on remote
+  api_host            API container hostname on docker_network
+  api_port            API listen port inside the network
   publish_port        Optional host bind port; omit or empty = no host bind
   internal_port       Container listen port; overrides compose when set
   delete_volume       yes/true/1/y/on → remove volumes before up
@@ -52,7 +54,7 @@ CONFIG:
 
 NOTES:
   - No CLI -- flags. Change behavior only via YAML.
-  - Non-empty override fields replace compose / Dockerfile values via env vars.
+  - Sets WEB_IMAGE_TAG / WEB_PUBLISH_PORT / DOCKER_NETWORK / API_HOST / API_PORT for compose.
   - Alias mode uses ~/.ssh/config (no ssh_key field).
   - Rejects placeholder ssh values at runtime.
   - Never prints the password segment of host@user@password.
@@ -100,7 +102,11 @@ function Require-Key($Map, [string]$Key) {
 
 function Resolve-DeployPath([string]$RelativePath) {
     $candidate = Join-Path $DeployDir $RelativePath
-    return (Resolve-Path -LiteralPath $candidate).Path
+    $fullPath = [System.IO.Path]::GetFullPath($candidate)
+    if (-not (Test-Path -LiteralPath $fullPath)) {
+        throw "Path not found: $fullPath"
+    }
+    return $fullPath
 }
 
 function Get-RepoRelativePath([string]$AbsolutePath) {
@@ -115,13 +121,19 @@ function Get-RepoRelativePath([string]$AbsolutePath) {
 
 function Build-ComposeEnvPrefix([hashtable]$Cfg, [string]$PublishPort) {
     $pairs = New-Object System.Collections.Generic.List[string]
-    $escapedPublish = $PublishPort.Replace("'", "'\\''")
-    [void]$pairs.Add("PUBLISH_PORT='$escapedPublish'")
+
+    # docker-compose.yml uses WEB_* env vars for image/port overrides.
+    if (-not [string]::IsNullOrWhiteSpace($PublishPort)) {
+        $escapedPublish = $PublishPort.Replace("'", "'\\''")
+        [void]$pairs.Add("WEB_PUBLISH_PORT='$escapedPublish'")
+    }
 
     $mapping = @{
-        image_tag       = 'IMAGE_TAG'
-        docker_network  = 'DOCKER_NETWORK'
-        internal_port   = 'INTERNAL_PORT'
+        image_tag      = 'WEB_IMAGE_TAG'
+        docker_network = 'DOCKER_NETWORK'
+        internal_port  = 'INTERNAL_PORT'
+        api_host       = 'API_HOST'
+        api_port       = 'API_PORT'
     }
     foreach ($entry in $mapping.GetEnumerator()) {
         if (-not $Cfg.ContainsKey($entry.Key)) { continue }
@@ -250,6 +262,8 @@ try {
     $network = Require-Key $cfg 'docker_network'
     $publishPort = if ($cfg.ContainsKey('publish_port')) { [string]$cfg['publish_port'] } else { '' }
     $internalPort = if ($cfg.ContainsKey('internal_port')) { [string]$cfg['internal_port'] } else { '' }
+    $apiHost = if ($cfg.ContainsKey('api_host')) { [string]$cfg['api_host'] } else { 'lexmora-api' }
+    $apiPort = if ($cfg.ContainsKey('api_port')) { [string]$cfg['api_port'] } else { '8080' }
     $deleteVolume = Test-Truthy ($(if ($cfg.ContainsKey('delete_volume')) { [string]$cfg['delete_volume'] } else { 'no' }))
     $deleteImage = Test-Truthy ($(if ($cfg.ContainsKey('delete_image')) { [string]$cfg['delete_image'] } else { 'no' }))
     $buildImageOn = if ($cfg.ContainsKey('build_image_on')) { [string]$cfg['build_image_on'] } else { 'local' }
@@ -269,6 +283,12 @@ try {
     if (Test-Placeholder $volumeDir) {
         throw 'volume_dir still has placeholders. Fill a real absolute remote path.'
     }
+    if ([string]::IsNullOrWhiteSpace($apiHost) -or (Test-Placeholder $apiHost)) {
+        throw 'api_host is missing or still a placeholder.'
+    }
+    if ([string]::IsNullOrWhiteSpace($apiPort) -or (Test-Placeholder $apiPort)) {
+        throw 'api_port is missing or still a placeholder.'
+    }
 
     $composePath = Resolve-DeployPath $composeFileRel
     $dockerfile = Resolve-DeployPath $dockerfileRel
@@ -278,15 +298,33 @@ try {
 
     $target = Parse-SshTarget -SshValue $sshValue
     Write-Step "Remote target: $($target.LogTarget)"
-    Write-Step "Stack=$stackName image=$imageTag build_image_on=$buildImageOn volume_dir=$volumeDir publish_port='$publishPort' internal_port='$internalPort'"
+    Write-Step "Stack=$stackName image=$imageTag build_image_on=$buildImageOn volume_dir=$volumeDir api=$apiHost`:$apiPort publish_port='$publishPort' internal_port='$internalPort'"
 
     Write-Step "Ensuring remote volume dir $volumeDir"
     Invoke-Remote -Target $target -RemoteCommand "mkdir -p '$volumeDir'"
+
+    $downFlags = if ($deleteVolume) { '-v' } else { '' }
+
+    # Tear down / remove old image BEFORE loading or building the new one,
+    # otherwise delete_image=yes would wipe a freshly uploaded local image.
+    if ($deleteVolume -or $deleteImage) {
+        Write-Step 'Remote compose down'
+        Invoke-Remote -Target $target -RemoteCommand "docker compose -p '$stackName' -f '$remoteCompose' --project-directory '$volumeDir' down $downFlags || true"
+    }
+
+    if ($deleteImage) {
+        Write-Step "Removing remote image $imageTag"
+        Invoke-Remote -Target $target -RemoteCommand "docker image rm -f '$imageTag' || true"
+    }
 
     if ($buildImageOn -eq 'server') {
         Write-Step "Syncing repo to $volumeDir for remote build"
         Copy-DirToRemote -Target $target -LocalDir $RepoRoot -RemoteDir $volumeDir
         Write-Ok 'Repo synced to remote'
+
+        Write-Step "Building $imageTag on remote (dockerfile=$remoteDockerfile context=$volumeDir)"
+        Invoke-Remote -Target $target -RemoteCommand "docker build -f '$volumeDir/$remoteDockerfile' -t '$imageTag' '$volumeDir'"
+        Write-Ok "Built $imageTag on remote"
     }
     else {
         Write-Step "Building $imageTag locally (dockerfile=$dockerfile context=$RepoRoot)"
@@ -320,24 +358,6 @@ try {
         }
     }
 
-    $downFlags = if ($deleteVolume) { '-v' } else { '' }
-
-    if ($deleteVolume -or $deleteImage) {
-        Write-Step 'Remote compose down'
-        Invoke-Remote -Target $target -RemoteCommand "docker compose -p '$stackName' -f '$remoteCompose' --project-directory '$volumeDir' down $downFlags"
-    }
-
-    if ($deleteImage) {
-        Write-Step "Removing remote image $imageTag"
-        Invoke-Remote -Target $target -RemoteCommand "docker image rm -f '$imageTag' || true"
-    }
-
-    if ($buildImageOn -eq 'server') {
-        Write-Step "Building $imageTag on remote (dockerfile=$remoteDockerfile context=$volumeDir)"
-        Invoke-Remote -Target $target -RemoteCommand "docker build -f '$volumeDir/$remoteDockerfile' -t '$imageTag' '$volumeDir'"
-        Write-Ok "Built $imageTag on remote"
-    }
-
     Write-Step "Ensuring remote network $network"
     Invoke-Remote -Target $target -RemoteCommand "docker network inspect '$network' >/dev/null 2>&1 || docker network create '$network'"
 
@@ -345,10 +365,12 @@ try {
         image_tag      = $imageTag
         docker_network = $network
         internal_port  = $internalPort
+        api_host       = $apiHost
+        api_port       = $apiPort
     } $publishPort
 
-    Write-Step 'Remote compose up -d'
-    Invoke-Remote -Target $target -RemoteCommand "${envPrefix}docker compose -p '$stackName' -f '$remoteCompose' --project-directory '$volumeDir' up -d"
+    Write-Step 'Remote compose up -d --force-recreate'
+    Invoke-Remote -Target $target -RemoteCommand "${envPrefix}docker compose -p '$stackName' -f '$remoteCompose' --project-directory '$volumeDir' up -d --force-recreate --remove-orphans"
     Write-Ok "Stack deployed at $volumeDir on $($target.LogTarget)"
 }
 catch {

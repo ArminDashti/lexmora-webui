@@ -1,8 +1,16 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { HistoryRecord } from '../api/client'
+import MarkdownPreview from './MarkdownPreview.vue'
+import { formatLocalDateTime } from '../utils/datetime'
+import { textDir } from '../utils/textDirection'
 
-defineProps<{ item: HistoryRecord }>()
+const props = defineProps<{ item: HistoryRecord }>()
 defineEmits<{ close: [] }>()
+
+const localDate = computed(() =>
+  formatLocalDateTime(props.item.created_at, props.item.formatted_date)
+)
 </script>
 
 <template>
@@ -11,7 +19,7 @@ defineEmits<{ close: [] }>()
       <div class="mb-4 flex items-start justify-between">
         <div>
           <h3 class="text-lg font-semibold text-white">History details</h3>
-          <p class="text-sm text-gray-400">{{ item.formatted_date }}</p>
+          <p class="text-sm text-gray-400">{{ localDate }}</p>
         </div>
         <button class="text-gray-400 hover:text-white" @click="$emit('close')">✕</button>
       </div>
@@ -31,14 +39,17 @@ defineEmits<{ close: [] }>()
         </div>
         <div>
           <dt class="text-gray-500">Input</dt>
-          <dd class="whitespace-pre-wrap rounded-lg border border-surface-border bg-surface p-3 text-gray-100">
+          <dd
+            class="whitespace-pre-wrap rounded-lg border border-surface-border bg-surface p-3 text-gray-100"
+            :dir="textDir(item.input_text)"
+          >
             {{ item.input_text }}
           </dd>
         </div>
         <div>
           <dt class="text-gray-500">Result</dt>
-          <dd class="whitespace-pre-wrap rounded-lg border border-surface-border bg-surface p-3 text-gray-100">
-            {{ item.result_text }}
+          <dd>
+            <MarkdownPreview :content="item.result_text" />
           </dd>
         </div>
       </dl>

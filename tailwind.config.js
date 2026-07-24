@@ -4,6 +4,9 @@ export default {
   darkMode: 'class',
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['"Google Sans"', 'Vazirmatn', 'system-ui', 'sans-serif'],
+      },
       colors: {
         surface: {
           DEFAULT: '#0f1117',

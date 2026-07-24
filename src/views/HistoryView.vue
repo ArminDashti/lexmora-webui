@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { api, type HistoryRecord } from '../api/client'
 import HistoryModal from '../components/HistoryModal.vue'
+import { formatLocalDateTime } from '../utils/datetime'
 
 const items = ref<HistoryRecord[]>([])
 const loading = ref(true)
@@ -9,6 +10,10 @@ const error = ref('')
 const sortBy = ref('datetime')
 const sortOrder = ref('desc')
 const selected = ref<HistoryRecord | null>(null)
+
+function displayDate(item: HistoryRecord) {
+  return formatLocalDateTime(item.created_at, item.formatted_date)
+}
 
 async function load() {
   loading.value = true
@@ -57,11 +62,6 @@ onMounted(load)
 
 <template>
   <div class="space-y-6">
-    <div>
-      <h2 class="text-xl font-semibold text-white">History</h2>
-      <p class="text-sm text-gray-400">Past transformations</p>
-    </div>
-
     <div v-if="error" class="text-sm text-red-400">{{ error }}</div>
 
     <div class="card overflow-hidden p-0">
@@ -108,7 +108,7 @@ onMounted(load)
               <td class="px-4 py-3">
                 <span class="table-cell-truncate block">{{ item.model }}</span>
               </td>
-              <td class="px-4 py-3 whitespace-nowrap">{{ item.formatted_date }}</td>
+              <td class="px-4 py-3 whitespace-nowrap">{{ displayDate(item) }}</td>
               <td class="px-4 py-3">
                 <button
                   class="text-red-400 hover:text-red-300"
