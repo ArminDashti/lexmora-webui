@@ -6,7 +6,7 @@ Updated: 2026-07-24
 |---------|-------|
 | Hostname | `t3-new` |
 | Public IP | `2.144.27.74` |
-| SSH | `ssh t3` (`cloud-admin`, key `~/.ssh/id_ed25519_cloud-admin_2-144-27-74`) |
+| SSH | `ssh t3 -p 80` (`cloud-admin`, key `~/.ssh/id_ed25519_irancell`) |
 | OS | Ubuntu, kernel `7.0.0-28-generic` |
 | Resources | ~3.8 GiB RAM, ~48G disk (`/` ~21% used) |
 | Docker network | `t3-net` (shared app + HAProxy) |

@@ -217,10 +217,14 @@ try {
     $env:DOCKER_NETWORK = $network
     $env:API_HOST = $apiHost
     $env:API_PORT = $apiPort
+    $publishComposePath = Join-Path $RepoRoot 'docker-compose.publish.yml'
+    if (-not (Test-Path -LiteralPath $publishComposePath)) {
+        throw "Missing publish overlay: $publishComposePath"
+    }
     try {
         # Force recreate so network / API_HOST changes replace a stale container
         # (plain `up -d` can leave an old network attachment like lexmora-net).
-        docker compose -p $stackName -f $composePath --project-directory $RepoRoot up -d --force-recreate --remove-orphans
+        docker compose -p $stackName -f $composePath -f $publishComposePath --project-directory $RepoRoot up -d --force-recreate --remove-orphans
         if ($LASTEXITCODE -ne 0) { throw 'docker compose up failed' }
     }
     finally {
