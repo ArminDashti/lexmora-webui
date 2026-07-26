@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { api, type Instruction } from '../api/client'
+import MarkdownPreview from '../components/MarkdownPreview.vue'
+import { textDir } from '../utils/textDirection'
 
 const instructions = ref<Instruction[]>([])
 const selectedKey = ref('')
@@ -9,6 +11,7 @@ const loading = ref(true)
 const saving = ref(false)
 const error = ref('')
 const saved = ref(false)
+const viewMode = ref<'preview' | 'edit'>('preview')
 
 async function load() {
   loading.value = true
@@ -30,6 +33,7 @@ function select(key: string) {
   const item = instructions.value.find((i) => i.key === key)
   content.value = item?.content || ''
   saved.value = false
+  viewMode.value = 'preview'
 }
 
 async function save() {
@@ -42,6 +46,7 @@ async function save() {
     const idx = instructions.value.findIndex((i) => i.key === updated.key)
     if (idx >= 0) instructions.value[idx] = updated
     saved.value = true
+    viewMode.value = 'preview'
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Save failed'
   } finally {
@@ -54,11 +59,6 @@ onMounted(load)
 
 <template>
   <div class="space-y-6">
-    <div>
-      <h2 class="text-xl font-semibold text-white">Instructions</h2>
-      <p class="text-sm text-gray-400">Edit AI system prompts for each operation</p>
-    </div>
-
     <div v-if="loading" class="text-gray-500">Loading...</div>
 
     <div v-else class="grid gap-6 lg:grid-cols-[240px_1fr]">
@@ -79,10 +79,37 @@ onMounted(load)
       </div>
 
       <div class="card space-y-4">
-        <h3 class="font-medium text-white">{{ selectedKey }}</h3>
-        <textarea v-model="content" rows="16" class="input-field font-mono text-sm" />
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <h3 class="font-medium text-white">{{ selectedKey }}</h3>
+          <div class="flex gap-1 rounded-lg border border-surface-border p-0.5">
+            <button
+              class="rounded-md px-3 py-1 text-sm transition"
+              :class="viewMode === 'preview' ? 'bg-accent/20 text-accent' : 'text-gray-400 hover:text-white'"
+              @click="viewMode = 'preview'"
+            >
+              Preview
+            </button>
+            <button
+              class="rounded-md px-3 py-1 text-sm transition"
+              :class="viewMode === 'edit' ? 'bg-accent/20 text-accent' : 'text-gray-400 hover:text-white'"
+              @click="viewMode = 'edit'"
+            >
+              Edit
+            </button>
+          </div>
+        </div>
+
+        <MarkdownPreview v-if="viewMode === 'preview'" :content="content" />
+        <textarea
+          v-else
+          v-model="content"
+          rows="16"
+          class="input-field font-mono text-sm"
+          :dir="textDir(content)"
+        />
+
         <div class="flex items-center gap-4">
-          <button class="btn-primary" :disabled="saving" @click="save">
+          <button class="btn-primary" :disabled="saving || viewMode === 'preview'" @click="save">
             {{ saving ? 'Saving...' : 'Save' }}
           </button>
           <span v-if="saved" class="text-sm text-green-400">Saved</span>
