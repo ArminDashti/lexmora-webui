@@ -1,6 +1,12 @@
+*.exe
+*.EXE
+
 node_modules/
 dist/
 .env
 *.tsbuildinfo
 vite.config.js
 vite.config.d.ts
+
+# --- auto: github-commit-push-all-repos ---
+# --- end auto ---
