@@ -67,10 +67,21 @@ export const api = {
       body: JSON.stringify(payload),
     }),
 
-  getHistory: (params: { sort_by?: string; sort_order?: string }) => {
+  getTransformOptions: () => request<TransformOptions>('/transform/options'),
+
+  getHistory: (params: {
+    sort_by?: string
+    sort_order?: string
+    type?: string
+    from?: string
+    to?: string
+  }) => {
     const q = new URLSearchParams()
     if (params.sort_by) q.set('sort_by', params.sort_by)
     if (params.sort_order) q.set('sort_order', params.sort_order)
+    if (params.type) q.set('type', params.type)
+    if (params.from) q.set('from', params.from)
+    if (params.to) q.set('to', params.to)
     return request<HistoryRecord[]>(`/history?${q}`)
   },
 
@@ -84,6 +95,12 @@ export const api = {
   getInstructions: () => request<Instruction[]>('/instructions'),
 
   getInstruction: (key: string) => request<Instruction>(`/instructions/${key}`),
+
+  createInstruction: (payload: CreateInstructionPayload) =>
+    request<Instruction>('/instructions', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
 
   updateInstruction: (key: string, content: string) =>
     request<Instruction>(`/instructions/${key}`, {
@@ -99,6 +116,14 @@ export const api = {
       body: JSON.stringify(payload),
     }),
 
+  searchModels: (q: string) => {
+    const params = new URLSearchParams()
+    if (q) params.set('q', q)
+    return request<OpenRouterModel[]>(`/settings/models?${params}`)
+  },
+
+  getCredits: () => request<CreditsInfo>('/settings/credits'),
+
   clearData: () => request<void>('/settings/data', { method: 'DELETE' }),
 }
 
@@ -112,6 +137,38 @@ export interface TransformResult {
   instruction_key: string
   created_at?: string
   formatted_date: string
+}
+
+export interface OptionItem {
+  value: string
+  label: string
+}
+
+export interface DirectionOption {
+  value: string
+  label: string
+  modes: OptionItem[]
+}
+
+export interface OperationOption {
+  value: string
+  label: string
+  directions?: DirectionOption[]
+  styles?: OptionItem[]
+  languages?: OptionItem[]
+}
+
+export interface TransformOptions {
+  operations: OperationOption[]
+}
+
+export interface CreateInstructionPayload {
+  operation: string
+  direction?: string
+  mode?: string
+  style?: string
+  language?: string
+  content?: string
 }
 
 export interface HistoryRecord {
@@ -156,4 +213,19 @@ export interface AppSettings {
   openrouter_api_key: string
   model_name: string
   updated_at: string
+}
+
+export interface OpenRouterModel {
+  id: string
+  name: string
+  context_length: number
+}
+
+export interface CreditsInfo {
+  source: 'credits' | 'key'
+  remaining: number | null
+  total_credits: number | null
+  total_usage: number | null
+  limit_remaining: number | null
+  usage: number | null
 }

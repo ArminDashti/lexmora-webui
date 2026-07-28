@@ -1,67 +1,56 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
-import { api, type TransformResult } from '../api/client'
+import { computed, onMounted, ref, watch } from 'vue'
+import {
+  api,
+  type OperationOption,
+  type TransformOptions,
+  type TransformResult,
+} from '../api/client'
 import MarkdownPreview from '../components/MarkdownPreview.vue'
 import { formatLocalDateTime } from '../utils/datetime'
 import { textDir } from '../utils/textDirection'
 
-type Operation = 'translate' | 'simplify' | 'term' | 'refine' | 'symptoms' | 'compare'
-
-const operation = ref<Operation>('translate')
+const options = ref<TransformOptions | null>(null)
+const operation = ref('')
 const text = ref('')
 const text1 = ref('')
 const text2 = ref('')
-const direction = ref('en-fa')
-const mode = ref('general')
+const direction = ref('')
+const mode = ref('')
 const movieName = ref('')
-const style = ref('everyday')
+const style = ref('')
+const language = ref('')
 
 const loading = ref(false)
+const optionsLoading = ref(true)
 const error = ref('')
 const result = ref<TransformResult | null>(null)
 
-const operations = [
-  { value: 'translate', label: 'Translate' },
-  { value: 'simplify', label: 'Simplify' },
-  { value: 'term', label: 'Term' },
-  { value: 'refine', label: 'Refine' },
-  { value: 'symptoms', label: 'Symptoms' },
-  { value: 'compare', label: 'Compare' },
-]
-
-const enFaModes = [
-  { value: 'general', label: 'General' },
-  { value: 'movie', label: 'Movie' },
-  { value: 'formal', label: 'Formal' },
-  { value: 'scientific', label: 'Scientific' },
-  { value: 'music', label: 'Music' },
-]
-
-const faEnModes = [
-  { value: 'general', label: 'General' },
-  { value: 'formal', label: 'Formal' },
-  { value: 'scientific', label: 'Scientific' },
-]
-
-const styleOptions = [
-  { value: 'everyday', label: 'Everyday' },
-  { value: 'formal', label: 'Formal' },
-  { value: 'slang', label: 'Slang' },
-]
-
-const showMovieField = computed(
-  () => operation.value === 'translate' && direction.value === 'en-fa' && mode.value === 'movie'
+const currentOp = computed<OperationOption | undefined>(() =>
+  options.value?.operations.find((o) => o.value === operation.value)
 )
 
-const translateModes = computed(() =>
-  direction.value === 'en-fa' ? enFaModes : faEnModes
+const directions = computed(() => currentOp.value?.directions ?? [])
+
+const currentDirection = computed(() =>
+  directions.value.find((d) => d.value === direction.value)
+)
+
+const modes = computed(() => currentDirection.value?.modes ?? [])
+
+const styles = computed(() => currentOp.value?.styles ?? [])
+
+const languages = computed(() => currentOp.value?.languages ?? [])
+
+const showMovieField = computed(
+  () => operation.value === 'translate' && mode.value === 'movie'
 )
 
 const canSubmit = computed(() => {
   if (operation.value === 'compare') {
     return text1.value.trim().length > 0 && text2.value.trim().length > 0
   }
-  return text.value.trim().length > 0
+  return text.value.trim().length > 0 && !!operation.value
 })
 
 const inputDir = computed(() => textDir(text.value))
@@ -74,12 +63,73 @@ const resultDate = computed(() =>
     : ''
 )
 
-watch(direction, () => {
-  const valid = translateModes.value.some((m) => m.value === mode.value)
-  if (!valid) mode.value = 'general'
-})
+function pickDefaults(ops: OperationOption[]) {
+  if (!ops.length) {
+    operation.value = ''
+    return
+  }
+  if (!ops.some((o) => o.value === operation.value)) {
+    operation.value = ops[0].value
+  }
+  syncSecondaryFields()
+}
+
+function syncSecondaryFields() {
+  const op = currentOp.value
+  if (!op) return
+
+  if (op.directions?.length) {
+    if (!op.directions.some((d) => d.value === direction.value)) {
+      direction.value = op.directions[0].value
+    }
+    const dir = op.directions.find((d) => d.value === direction.value)
+    if (dir?.modes.length) {
+      if (!dir.modes.some((m) => m.value === mode.value)) {
+        mode.value = dir.modes[0].value
+      }
+    } else {
+      mode.value = ''
+    }
+  } else {
+    direction.value = ''
+    mode.value = ''
+  }
+
+  if (op.styles?.length) {
+    if (!op.styles.some((s) => s.value === style.value)) {
+      style.value = op.styles[0].value
+    }
+  } else {
+    style.value = ''
+  }
+
+  if (op.languages?.length) {
+    if (!op.languages.some((l) => l.value === language.value)) {
+      language.value = op.languages[0].value
+    }
+  } else {
+    language.value = ''
+  }
+}
+
+watch(operation, syncSecondaryFields)
+watch(direction, syncSecondaryFields)
+
+async function loadOptions() {
+  optionsLoading.value = true
+  error.value = ''
+  try {
+    options.value = await api.getTransformOptions()
+    pickDefaults(options.value.operations)
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : 'Failed to load options'
+  } finally {
+    optionsLoading.value = false
+  }
+}
 
 async function submit() {
+  if (!canSubmit.value || loading.value) return
   error.value = ''
   result.value = null
   loading.value = true
@@ -91,7 +141,7 @@ async function submit() {
   if (operation.value === 'compare') {
     payload.text1 = text1.value
     payload.text2 = text2.value
-    payload.language = 'en'
+    if (language.value) payload.language = language.value
   } else {
     payload.text = text.value
 
@@ -101,6 +151,7 @@ async function submit() {
       if (showMovieField.value) payload.movie_name = movieName.value
     } else if (operation.value === 'term') {
       payload.style = style.value
+      if (language.value) payload.language = language.value
     } else if (operation.value === 'refine') {
       payload.style = style.value
     }
@@ -114,56 +165,72 @@ async function submit() {
     loading.value = false
   }
 }
+
+function onTextareaKeydown(event: KeyboardEvent) {
+  if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+    event.preventDefault()
+    submit()
+  }
+}
+
+onMounted(loadOptions)
 </script>
 
 <template>
   <div class="space-y-6">
-    <div class="card space-y-4">
-      <div class="flex flex-wrap items-end gap-3">
+    <form class="card space-y-4" @submit.prevent="submit">
+      <div v-if="optionsLoading" class="text-sm text-gray-500">Loading options...</div>
+
+      <div v-else class="flex flex-wrap items-end gap-3">
         <div class="w-full max-w-[11rem]">
           <label class="mb-1 block text-sm text-gray-400">Operation</label>
           <select v-model="operation" class="select-field select-compact">
-            <option v-for="op in operations" :key="op.value" :value="op.value">
+            <option
+              v-for="op in options?.operations ?? []"
+              :key="op.value"
+              :value="op.value"
+            >
               {{ op.label }}
             </option>
           </select>
         </div>
 
-        <template v-if="operation === 'translate'">
-          <div class="w-full max-w-[11rem]">
+        <template v-if="directions.length">
+          <div class="w-full max-w-[14rem]">
             <label class="mb-1 block text-sm text-gray-400">Direction</label>
             <select v-model="direction" class="select-field select-compact">
-              <option value="en-fa">EN → FA</option>
-              <option value="fa-en">FA → EN</option>
+              <option v-for="d in directions" :key="d.value" :value="d.value">
+                {{ d.label }}
+              </option>
             </select>
           </div>
-          <div class="w-full max-w-[11rem]">
+          <div v-if="modes.length" class="w-full max-w-[11rem]">
             <label class="mb-1 block text-sm text-gray-400">Mode</label>
             <select v-model="mode" class="select-field select-compact">
-              <option v-for="m in translateModes" :key="m.value" :value="m.value">
+              <option v-for="m in modes" :key="m.value" :value="m.value">
                 {{ m.label }}
               </option>
             </select>
           </div>
         </template>
 
-        <template v-if="operation === 'term'">
+        <template v-if="styles.length">
           <div class="w-full max-w-[11rem]">
             <label class="mb-1 block text-sm text-gray-400">Style</label>
             <select v-model="style" class="select-field select-compact">
-              <option v-for="s in styleOptions" :key="s.value" :value="s.value">
+              <option v-for="s in styles" :key="s.value" :value="s.value">
                 {{ s.label }}
               </option>
             </select>
           </div>
         </template>
 
-        <template v-if="operation === 'refine'">
+        <template v-if="languages.length && operation !== 'term'">
           <div class="w-full max-w-[11rem]">
-            <label class="mb-1 block text-sm text-gray-400">Style</label>
-            <select v-model="style" class="select-field select-compact">
-              <option v-for="s in styleOptions" :key="s.value" :value="s.value">
-                {{ s.label }}
+            <label class="mb-1 block text-sm text-gray-400">Language</label>
+            <select v-model="language" class="select-field select-compact">
+              <option v-for="l in languages" :key="l.value" :value="l.value">
+                {{ l.label }}
               </option>
             </select>
           </div>
@@ -205,16 +272,17 @@ async function submit() {
           rows="6"
           class="input-field resize-y"
           :dir="inputDir"
-          placeholder="Enter text to transform..."
+          placeholder="Enter text to transform... (Ctrl+Enter to submit)"
+          @keydown="onTextareaKeydown"
         />
       </div>
 
       <p v-if="error" class="text-sm text-red-400">{{ error }}</p>
 
-      <button class="btn-primary" :disabled="loading || !canSubmit" @click="submit">
+      <button class="btn-primary" type="submit" :disabled="loading || !canSubmit">
         {{ loading ? 'Processing...' : 'Transform' }}
       </button>
-    </div>
+    </form>
 
     <div v-if="result" class="card space-y-3">
       <div class="flex flex-wrap items-center gap-3 text-sm text-gray-400">

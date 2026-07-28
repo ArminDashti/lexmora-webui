@@ -16,8 +16,8 @@ const periods = [
 
 const categories = [
   { key: 'simplify' as const, label: 'Simplify' },
-  { key: 'en_fa' as const, label: 'EN-FA' },
-  { key: 'fa_en' as const, label: 'FA-EN' },
+  { key: 'en_fa' as const, label: 'English-Persian' },
+  { key: 'fa_en' as const, label: 'Persian-English' },
   { key: 'term' as const, label: 'Term' },
   { key: 'refine' as const, label: 'Refine' },
   { key: 'symptoms' as const, label: 'Symptoms' },

@@ -4,11 +4,27 @@ import { api, type HistoryRecord } from '../api/client'
 import HistoryModal from '../components/HistoryModal.vue'
 import { formatLocalDateTime } from '../utils/datetime'
 
+const HISTORY_TYPES = [
+  { value: '', label: 'All types' },
+  { value: 'simplify', label: 'Simplify' },
+  { value: 'en_fa', label: 'English-Persian' },
+  { value: 'fa_en', label: 'Persian-English' },
+  { value: 'term_en', label: 'Term English' },
+  { value: 'term_fa', label: 'Term Persian' },
+  { value: 'refine', label: 'Refine' },
+  { value: 'symptoms', label: 'Symptoms' },
+  { value: 'compare_en', label: 'Compare English' },
+  { value: 'compare_fa', label: 'Compare Persian' },
+]
+
 const items = ref<HistoryRecord[]>([])
 const loading = ref(true)
 const error = ref('')
 const sortBy = ref('datetime')
 const sortOrder = ref('desc')
+const typeFilter = ref('')
+const fromDate = ref('')
+const toDate = ref('')
 const selected = ref<HistoryRecord | null>(null)
 
 function displayDate(item: HistoryRecord) {
@@ -22,6 +38,9 @@ async function load() {
     items.value = await api.getHistory({
       sort_by: sortBy.value,
       sort_order: sortOrder.value,
+      type: typeFilter.value || undefined,
+      from: fromDate.value || undefined,
+      to: toDate.value || undefined,
     })
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to load history'
@@ -57,12 +76,46 @@ function sortIcon(column: string) {
   return sortOrder.value === 'asc' ? '↑' : '↓'
 }
 
+function clearFilters() {
+  typeFilter.value = ''
+  fromDate.value = ''
+  toDate.value = ''
+  load()
+}
+
 onMounted(load)
 </script>
 
 <template>
   <div class="space-y-6">
     <div v-if="error" class="text-sm text-red-400">{{ error }}</div>
+
+    <div class="card flex flex-wrap items-end gap-3">
+      <div class="w-full max-w-[14rem]">
+        <label class="mb-1 block text-sm text-gray-400">Type</label>
+        <select v-model="typeFilter" class="select-field select-compact" @change="load">
+          <option v-for="t in HISTORY_TYPES" :key="t.value || 'all'" :value="t.value">
+            {{ t.label }}
+          </option>
+        </select>
+      </div>
+      <div class="w-full max-w-[11rem]">
+        <label class="mb-1 block text-sm text-gray-400">From</label>
+        <input v-model="fromDate" type="date" class="input-field" @change="load" />
+      </div>
+      <div class="w-full max-w-[11rem]">
+        <label class="mb-1 block text-sm text-gray-400">To</label>
+        <input v-model="toDate" type="date" class="input-field" @change="load" />
+      </div>
+      <button
+        v-if="fromDate || toDate || typeFilter"
+        type="button"
+        class="text-sm text-gray-400 hover:text-white"
+        @click="clearFilters"
+      >
+        Clear filters
+      </button>
+    </div>
 
     <div class="card overflow-hidden p-0">
       <div class="overflow-x-auto">
@@ -100,10 +153,14 @@ onMounted(load)
                 <span class="table-cell-truncate block">{{ item.type_display }}</span>
               </td>
               <td class="px-4 py-3">
-                <span class="table-cell-truncate block" :title="item.input_text">{{ item.input_text }}</span>
+                <span class="table-cell-truncate block" :title="item.input_text">{{
+                  item.input_text
+                }}</span>
               </td>
               <td class="px-4 py-3">
-                <span class="table-cell-truncate block" :title="item.result_text">{{ item.result_text }}</span>
+                <span class="table-cell-truncate block" :title="item.result_text">{{
+                  item.result_text
+                }}</span>
               </td>
               <td class="px-4 py-3">
                 <span class="table-cell-truncate block">{{ item.model }}</span>

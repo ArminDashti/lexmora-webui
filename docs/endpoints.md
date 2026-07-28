@@ -19,16 +19,41 @@ Consumed from [lexmora-api](https://github.com/ArminDashti/lexmora-api). All aut
 | GET | `/api/v1/health` | No | Health check (not called by UI) |
 | POST | `/api/v1/auth/login` | No | Login with username/password, returns JWT |
 | POST | `/api/v1/transform` | Yes | Run a transform operation |
-| GET | `/api/v1/history` | Yes | List history (`sort_by`, `sort_order`, `limit`, `offset`) |
+| GET | `/api/v1/transform/options` | Yes | Dynamic Operation / Direction / Mode catalog from instruction keys |
+| GET | `/api/v1/history` | Yes | List history (`sort_by`, `sort_order`, `type`, `from`, `to`, `limit`, `offset`) |
 | GET | `/api/v1/history/:id` | Yes | Get single history record |
 | DELETE | `/api/v1/history/:id` | Yes | Delete history record |
 | GET | `/api/v1/stats` | Yes | Request counts by period and type |
 | GET | `/api/v1/instructions` | Yes | List all instruction keys |
+| POST | `/api/v1/instructions` | Yes | Create instruction from operation / direction / mode |
 | GET | `/api/v1/instructions/:key` | Yes | Get instruction content |
 | PUT | `/api/v1/instructions/:key` | Yes | Update instruction content |
 | GET | `/api/v1/settings` | Yes | Get OpenRouter token and model |
 | PATCH | `/api/v1/settings` | Yes | Update OpenRouter token and/or model |
+| GET | `/api/v1/settings/models` | Yes | Search OpenRouter models (`q`) |
+| GET | `/api/v1/settings/credits` | Yes | Remaining OpenRouter credits / key usage |
 | DELETE | `/api/v1/settings/data` | Yes | Delete all history rows |
+
+## History filters
+
+- `type` — exact history type code (`en_fa`, `simplify`, …)
+- `from` / `to` — `YYYY-MM-DD` inclusive calendar days (local server TZ)
+
+## Transform options — `GET /api/v1/transform/options`
+
+Derived from instruction keys:
+
+| Key pattern | UI |
+|-------------|-----|
+| `en-to-fa-{mode}` | Translate · English → Persian · mode |
+| `fa-to-en-{mode}` | Translate · Persian → English · mode |
+| `refine-to-{style}` | Refine · style |
+| `term-for-{style}` | Term · style |
+| `compare-{lang}` | Compare · language |
+| `simplify-en` | Simplify |
+| `symptoms` | Symptoms |
+
+Create new modes/styles on the Instructions page (`POST /instructions` with `operation`, `direction`, `mode` / `style` / `language`).
 
 ## Transform — `POST /api/v1/transform`
 
@@ -41,14 +66,14 @@ Consumed from [lexmora-api](https://github.com/ArminDashti/lexmora-api). All aut
   "text1": "...",
   "text2": "...",
   "direction": "en-fa|fa-en",
-  "mode": "general|movie|formal|scientific|music",
+  "mode": "<slug matching an instruction key>",
   "movie_name": "...",
   "language": "en|fa",
-  "style": "everyday|formal|slang"
+  "style": "<slug matching an instruction key>"
 }
 ```
 
-Only include fields relevant to the selected operation.
+Only include fields relevant to the selected operation. Modes/styles must exist as instruction keys.
 
 ### Operations
 
@@ -56,7 +81,7 @@ Only include fields relevant to the selected operation.
 |-----------|-----------------|--------------|
 | `translate` | `text`, `direction`, `mode` (+ `movie_name` if mode is `movie`) | `en_fa` / `fa_en` |
 | `simplify` | `text` | `simplify` |
-| `term` | `text`, `language`, `style` | `term_en` / `term_fa` |
+| `term` | `text`, `style` (`language` optional) | `term_en` / `term_fa` |
 | `refine` | `text`, `style` | `refine` |
 | `symptoms` | `text` | `symptoms` |
 | `compare` | `text1`, `text2`, `language` | `compare_en` / `compare_fa` |
