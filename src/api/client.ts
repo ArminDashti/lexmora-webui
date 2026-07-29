@@ -213,6 +213,9 @@ export interface AppSettings {
   openrouter_api_key: string
   model_name: string
   updated_at: string
+  /** UI-ready; backend wiring for CursorAPI is pending. */
+  api_provider?: 'openrouter' | 'cursor'
+  cursor_api_key?: string
 }
 
 export interface OpenRouterModel {

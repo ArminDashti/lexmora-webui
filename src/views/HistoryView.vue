@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { api, type HistoryRecord } from '../api/client'
 import HistoryModal from '../components/HistoryModal.vue'
 import { formatLocalDateTime } from '../utils/datetime'
@@ -26,6 +26,18 @@ const typeFilter = ref('')
 const fromDate = ref('')
 const toDate = ref('')
 const selected = ref<HistoryRecord | null>(null)
+const checkedIds = ref<Set<string>>(new Set())
+const deleting = ref(false)
+
+const showFilters = computed(
+  () => items.value.length > 0 || !!typeFilter.value || !!fromDate.value || !!toDate.value
+)
+
+const allChecked = computed(
+  () => items.value.length > 0 && items.value.every((item) => checkedIds.value.has(item.id))
+)
+
+const someChecked = computed(() => checkedIds.value.size > 0)
 
 function displayDate(item: HistoryRecord) {
   return formatLocalDateTime(item.created_at, item.formatted_date)
@@ -42,6 +54,8 @@ async function load() {
       from: fromDate.value || undefined,
       to: toDate.value || undefined,
     })
+    const visible = new Set(items.value.map((i) => i.id))
+    checkedIds.value = new Set([...checkedIds.value].filter((id) => visible.has(id)))
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to load history'
   } finally {
@@ -59,16 +73,58 @@ function toggleSort(column: string) {
   load()
 }
 
+function toggleCheck(id: string, event: Event) {
+  event.stopPropagation()
+  const next = new Set(checkedIds.value)
+  if (next.has(id)) next.delete(id)
+  else next.add(id)
+  checkedIds.value = next
+}
+
+function toggleSelectAll(event: Event) {
+  const target = event.target as HTMLInputElement
+  if (target.checked) {
+    checkedIds.value = new Set(items.value.map((i) => i.id))
+  } else {
+    checkedIds.value = new Set()
+  }
+}
+
 async function remove(id: string, event: Event) {
   event.stopPropagation()
   if (!confirm('Delete this history entry?')) return
   try {
     await api.deleteHistory(id)
     items.value = items.value.filter((i) => i.id !== id)
+    const next = new Set(checkedIds.value)
+    next.delete(id)
+    checkedIds.value = next
     if (selected.value?.id === id) selected.value = null
   } catch (e) {
     alert(e instanceof Error ? e.message : 'Delete failed')
   }
+}
+
+async function removeChecked() {
+  if (!checkedIds.value.size) return
+  const count = checkedIds.value.size
+  if (!confirm(`Delete ${count} selected histor${count === 1 ? 'y entry' : 'y entries'}?`)) return
+
+  deleting.value = true
+  error.value = ''
+  const ids = [...checkedIds.value]
+  const results = await Promise.allSettled(ids.map((id) => api.deleteHistory(id)))
+  const failed = results.filter((r) => r.status === 'rejected').length
+  const deleted = new Set(ids.filter((_, i) => results[i].status === 'fulfilled'))
+
+  items.value = items.value.filter((i) => !deleted.has(i.id))
+  checkedIds.value = new Set([...checkedIds.value].filter((id) => !deleted.has(id)))
+  if (selected.value && deleted.has(selected.value.id)) selected.value = null
+
+  if (failed) {
+    error.value = `Failed to delete ${failed} of ${ids.length} entries`
+  }
+  deleting.value = false
 }
 
 function sortIcon(column: string) {
@@ -90,7 +146,7 @@ onMounted(load)
   <div class="space-y-6">
     <div v-if="error" class="text-sm text-red-400">{{ error }}</div>
 
-    <div class="card flex flex-wrap items-end gap-3">
+    <div v-if="showFilters" class="card flex flex-wrap items-end gap-3">
       <div class="w-full max-w-[14rem]">
         <label class="mb-1 block text-sm text-gray-400">Type</label>
         <select v-model="typeFilter" class="select-field select-compact" @change="load">
@@ -115,6 +171,14 @@ onMounted(load)
       >
         Clear filters
       </button>
+      <button
+        type="button"
+        class="btn-danger ml-auto"
+        :disabled="!someChecked || deleting"
+        @click="removeChecked"
+      >
+        {{ deleting ? 'Deleting...' : 'Delete' }}
+      </button>
     </div>
 
     <div class="card overflow-hidden p-0">
@@ -122,6 +186,16 @@ onMounted(load)
         <table class="w-full text-left text-sm">
           <thead class="border-b border-surface-border bg-surface text-gray-400">
             <tr>
+              <th class="w-10 px-4 py-3">
+                <input
+                  type="checkbox"
+                  class="accent-accent"
+                  :checked="allChecked"
+                  :disabled="items.length === 0"
+                  @click.stop
+                  @change="toggleSelectAll"
+                />
+              </th>
               <th class="cursor-pointer px-4 py-3 hover:text-white" @click="toggleSort('type')">
                 Type {{ sortIcon('type') }}
               </th>
@@ -138,10 +212,10 @@ onMounted(load)
           </thead>
           <tbody>
             <tr v-if="loading">
-              <td colspan="6" class="px-4 py-8 text-center text-gray-500">Loading...</td>
+              <td colspan="7" class="px-4 py-8 text-center text-gray-500">Loading...</td>
             </tr>
             <tr v-else-if="items.length === 0">
-              <td colspan="6" class="px-4 py-8 text-center text-gray-500">No history yet</td>
+              <td colspan="7" class="px-4 py-8 text-center text-gray-500">No history yet</td>
             </tr>
             <tr
               v-for="item in items"
@@ -149,6 +223,14 @@ onMounted(load)
               class="cursor-pointer border-b border-surface-border transition hover:bg-surface"
               @click="selected = item"
             >
+              <td class="px-4 py-3" @click.stop>
+                <input
+                  type="checkbox"
+                  class="accent-accent"
+                  :checked="checkedIds.has(item.id)"
+                  @change="toggleCheck(item.id, $event)"
+                />
+              </td>
               <td class="px-4 py-3">
                 <span class="table-cell-truncate block">{{ item.type_display }}</span>
               </td>

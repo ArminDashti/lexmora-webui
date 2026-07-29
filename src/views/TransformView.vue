@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { RouterLink } from 'vue-router'
 import {
   api,
   type OperationOption,
@@ -8,7 +9,7 @@ import {
 } from '../api/client'
 import MarkdownPreview from '../components/MarkdownPreview.vue'
 import { formatLocalDateTime } from '../utils/datetime'
-import { textDir } from '../utils/textDirection'
+import { startsWithPersian, textDir } from '../utils/textDirection'
 
 const options = ref<TransformOptions | null>(null)
 const operation = ref('')
@@ -63,6 +64,11 @@ const resultDate = computed(() =>
     : ''
 )
 
+function pickModeDefault(modeList: { value: string }[]): string {
+  const general = modeList.find((m) => m.value.toLowerCase() === 'general')
+  return general?.value ?? modeList[0]?.value ?? ''
+}
+
 function pickDefaults(ops: OperationOption[]) {
   if (!ops.length) {
     operation.value = ''
@@ -84,9 +90,7 @@ function syncSecondaryFields() {
     }
     const dir = op.directions.find((d) => d.value === direction.value)
     if (dir?.modes.length) {
-      if (!dir.modes.some((m) => m.value === mode.value)) {
-        mode.value = dir.modes[0].value
-      }
+      mode.value = pickModeDefault(dir.modes)
     } else {
       mode.value = ''
     }
@@ -107,13 +111,37 @@ function syncSecondaryFields() {
     if (!op.languages.some((l) => l.value === language.value)) {
       language.value = op.languages[0].value
     }
+  } else if (operation.value === 'term') {
+    if (language.value !== 'en' && language.value !== 'fa') {
+      language.value = 'en'
+    }
   } else {
     language.value = ''
   }
 }
 
+function syncDirectionFromText(input: string) {
+  if (!input.trim()) return
+
+  if (operation.value === 'translate' && directions.value.length) {
+    const target = startsWithPersian(input) ? 'fa-en' : 'en-fa'
+    if (directions.value.some((d) => d.value === target) && direction.value !== target) {
+      direction.value = target
+    }
+    return
+  }
+
+  if (operation.value === 'term') {
+    language.value = startsWithPersian(input) ? 'fa' : 'en'
+  }
+}
+
 watch(operation, syncSecondaryFields)
 watch(direction, syncSecondaryFields)
+watch(text, (value) => syncDirectionFromText(value))
+watch(operation, () => {
+  if (text.value.trim()) syncDirectionFromText(text.value)
+})
 
 async function loadOptions() {
   optionsLoading.value = true
@@ -166,8 +194,8 @@ async function submit() {
   }
 }
 
-function onTextareaKeydown(event: KeyboardEvent) {
-  if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+function onSubmitKeydown(event: KeyboardEvent) {
+  if (event.key === 'Enter' && !event.shiftKey) {
     event.preventDefault()
     submit()
   }
@@ -230,11 +258,17 @@ onMounted(loadOptions)
             <label class="mb-1 block text-sm text-gray-400">Language</label>
             <select v-model="language" class="select-field select-compact">
               <option v-for="l in languages" :key="l.value" :value="l.value">
-                {{ l.label }}
+                {{ l.label === 'en' ? 'English' : l.label === 'fa' ? 'Persian' : l.label }}
               </option>
             </select>
           </div>
         </template>
+
+        <div class="ml-auto">
+          <RouterLink to="/instructions" class="btn-ghost inline-block text-sm">
+            Instruction
+          </RouterLink>
+        </div>
       </div>
 
       <div v-if="showMovieField" class="max-w-md">
@@ -251,6 +285,7 @@ onMounted(loadOptions)
               class="input-field"
               :dir="text1Dir"
               placeholder="e.g. ask"
+              @keydown="onSubmitKeydown"
             />
           </div>
           <div>
@@ -260,6 +295,7 @@ onMounted(loadOptions)
               class="input-field"
               :dir="text2Dir"
               placeholder="e.g. request"
+              @keydown="onSubmitKeydown"
             />
           </div>
         </div>
@@ -272,8 +308,8 @@ onMounted(loadOptions)
           rows="6"
           class="input-field resize-y"
           :dir="inputDir"
-          placeholder="Enter text to transform... (Ctrl+Enter to submit)"
-          @keydown="onTextareaKeydown"
+          placeholder="Enter text to transform... (Enter to submit, Shift+Enter for newline)"
+          @keydown="onSubmitKeydown"
         />
       </div>
 

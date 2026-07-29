@@ -23,6 +23,13 @@ const COMPARE_LANGUAGES = [
   { value: 'fa', label: 'Persian' },
 ]
 
+/** Display helper — keep API keys as en/fa; show English/Persian in the UI. */
+function formatInstructionKey(key: string): string {
+  return key
+    .replace(/(^|[-_])en(?=[-_]|$)/gi, '$1English')
+    .replace(/(^|[-_])fa(?=[-_]|$)/gi, '$1Persian')
+}
+
 const instructions = ref<Instruction[]>([])
 const selectedKey = ref('')
 const content = ref('')
@@ -148,7 +155,7 @@ onMounted(load)
             "
             @click="select(item.key)"
           >
-            {{ item.key }}
+            {{ formatInstructionKey(item.key) }}
           </button>
         </div>
 
@@ -227,7 +234,9 @@ onMounted(load)
 
       <div class="card space-y-4">
         <div class="flex flex-wrap items-center justify-between gap-3">
-          <h3 class="font-medium text-white">{{ selectedKey || 'Select an instruction' }}</h3>
+          <h3 class="font-medium text-white">
+            {{ selectedKey ? formatInstructionKey(selectedKey) : 'Select an instruction' }}
+          </h3>
           <div class="flex gap-1 rounded-lg border border-surface-border p-0.5">
             <button
               class="rounded-md px-3 py-1 text-sm transition"

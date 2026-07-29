@@ -8,7 +8,6 @@ const username = getUsername() || 'armin'
 const links = [
   { to: '/transform', label: 'Transform' },
   { to: '/history', label: 'History' },
-  { to: '/instructions', label: 'Instructions' },
   { to: '/stats', label: 'Stats' },
   { to: '/settings', label: 'Settings' },
 ]
