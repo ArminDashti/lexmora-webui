@@ -5,7 +5,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: ${WEB_IMAGE_TAG:-lexmora-webui:latest}
+    image: ${IMAGE_TAG:-lexmora-webui:latest}
     container_name: lexmora-webui
     expose:
       - "80"

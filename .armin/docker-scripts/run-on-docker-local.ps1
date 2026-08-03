@@ -21,8 +21,9 @@
   delete_image        yes/true/1/y/on → remove image during teardown
 
   This script sets env vars expected by your `docker-compose.yml`:
-    - WEB_IMAGE_TAG
-    - WEB_PUBLISH_PORT (from publish_port)
+    - IMAGE_TAG
+    - PUBLISH_PORT (from publish_port)
+    - INTERNAL_PORT (when set)
     - DOCKER_NETWORK
     - API_HOST (from api_host)
     - API_PORT (from api_port)
@@ -64,14 +65,14 @@ CONFIG:
   docker_network
   api_host            API container hostname on docker_network
   api_port            API listen port inside the network
-  publish_port        Host bind port (WEB_PUBLISH_PORT)
-  internal_port       Optional (kept for compatibility)
+  publish_port        Host bind port (PUBLISH_PORT)
+  internal_port       Container listen port (INTERNAL_PORT)
   delete_volume
   delete_image
 
 NOTES:
   - No CLI -- flags. Edit run-on-docker-local.yaml instead.
-  - Sets WEB_IMAGE_TAG, WEB_PUBLISH_PORT, DOCKER_NETWORK, API_HOST, API_PORT for compose.
+  - Sets IMAGE_TAG, PUBLISH_PORT, INTERNAL_PORT, DOCKER_NETWORK, API_HOST, API_PORT for compose.
   - Uses --force-recreate so network / env changes always apply.
 "@ -ForegroundColor Cyan
 }
@@ -179,27 +180,36 @@ try {
     $composePath = Resolve-DeployPath $composeFileRel
     $dockerfile = Resolve-DeployPath $dockerfileRel
 
-    Write-Step "Stack=$stackName image=$imageTag network=$network api=$apiHost`:$apiPort publish_port=$publishPort delete_volume=$deleteVolume delete_image=$deleteImage"
-    if (-not [string]::IsNullOrWhiteSpace($internalPort)) {
-        Write-Step "internal_port provided but unused by this repo's docker-compose.yml: $internalPort"
-    }
+    Write-Step "Stack=$stackName image=$imageTag network=$network api=$apiHost`:$apiPort publish_port=$publishPort internal_port='$internalPort' delete_volume=$deleteVolume delete_image=$deleteImage"
 
     Ensure-Docker
     Ensure-Network $network
 
+    $publishComposePath = Join-Path $RepoRoot 'docker-compose.publish.yml'
+    if (-not (Test-Path -LiteralPath $publishComposePath)) {
+        throw "Missing publish overlay: $publishComposePath"
+    }
+
     if ($deleteVolume -or $deleteImage) {
         Write-Step 'Stopping existing stack'
         if ($deleteVolume) {
-            docker compose -p $stackName -f $composePath --project-directory $RepoRoot down -v
+            docker compose -p $stackName -f $composePath -f $publishComposePath --project-directory $RepoRoot down -v
         }
         else {
-            docker compose -p $stackName -f $composePath --project-directory $RepoRoot down
+            docker compose -p $stackName -f $composePath -f $publishComposePath --project-directory $RepoRoot down
         }
     }
 
     if ($deleteImage) {
         Write-Step "Removing local image $imageTag"
-        docker image rm -f $imageTag *> $null
+        $oldEap = $ErrorActionPreference
+        try {
+            $ErrorActionPreference = 'SilentlyContinue'
+            docker image rm -f $imageTag *> $null
+        }
+        finally {
+            $ErrorActionPreference = $oldEap
+        }
     }
 
     Write-Step "Building image $imageTag"
@@ -207,20 +217,18 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'docker build failed' }
 
     Write-Step 'Starting stack'
-    $oldWebImageTag = $env:WEB_IMAGE_TAG
-    $oldWebPublishPort = $env:WEB_PUBLISH_PORT
+    $oldImageTag = $env:IMAGE_TAG
+    $oldPublishPort = $env:PUBLISH_PORT
+    $oldInternalPort = $env:INTERNAL_PORT
     $oldDockerNetwork = $env:DOCKER_NETWORK
     $oldApiHost = $env:API_HOST
     $oldApiPort = $env:API_PORT
-    $env:WEB_IMAGE_TAG = $imageTag
-    $env:WEB_PUBLISH_PORT = $publishPort
+    $env:IMAGE_TAG = $imageTag
+    $env:PUBLISH_PORT = $publishPort
     $env:DOCKER_NETWORK = $network
     $env:API_HOST = $apiHost
     $env:API_PORT = $apiPort
-    $publishComposePath = Join-Path $RepoRoot 'docker-compose.publish.yml'
-    if (-not (Test-Path -LiteralPath $publishComposePath)) {
-        throw "Missing publish overlay: $publishComposePath"
-    }
+    if (-not [string]::IsNullOrWhiteSpace($internalPort)) { $env:INTERNAL_PORT = $internalPort }
     try {
         # Force recreate so network / API_HOST changes replace a stale container
         # (plain `up -d` can leave an old network attachment like lexmora-net).
@@ -228,8 +236,9 @@ try {
         if ($LASTEXITCODE -ne 0) { throw 'docker compose up failed' }
     }
     finally {
-        if ($null -ne $oldWebImageTag) { $env:WEB_IMAGE_TAG = $oldWebImageTag } else { Remove-Item Env:WEB_IMAGE_TAG -ErrorAction SilentlyContinue }
-        if ($null -ne $oldWebPublishPort) { $env:WEB_PUBLISH_PORT = $oldWebPublishPort } else { Remove-Item Env:WEB_PUBLISH_PORT -ErrorAction SilentlyContinue }
+        if ($null -ne $oldImageTag) { $env:IMAGE_TAG = $oldImageTag } else { Remove-Item Env:IMAGE_TAG -ErrorAction SilentlyContinue }
+        if ($null -ne $oldPublishPort) { $env:PUBLISH_PORT = $oldPublishPort } else { Remove-Item Env:PUBLISH_PORT -ErrorAction SilentlyContinue }
+        if ($null -ne $oldInternalPort) { $env:INTERNAL_PORT = $oldInternalPort } else { Remove-Item Env:INTERNAL_PORT -ErrorAction SilentlyContinue }
         if ($null -ne $oldDockerNetwork) { $env:DOCKER_NETWORK = $oldDockerNetwork } else { Remove-Item Env:DOCKER_NETWORK -ErrorAction SilentlyContinue }
         if ($null -ne $oldApiHost) { $env:API_HOST = $oldApiHost } else { Remove-Item Env:API_HOST -ErrorAction SilentlyContinue }
         if ($null -ne $oldApiPort) { $env:API_PORT = $oldApiPort } else { Remove-Item Env:API_PORT -ErrorAction SilentlyContinue }
