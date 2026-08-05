@@ -23,7 +23,20 @@ function logout() {
     <header class="border-b border-surface-border bg-surface-raised">
       <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
         <div class="flex items-center gap-8">
-          <h1 class="text-lg font-semibold text-white">Lexmora</h1>
+          <RouterLink
+            to="/transform"
+            class="flex shrink-0 items-center gap-2.5"
+            aria-label="Lexmora home"
+          >
+            <img
+              src="/logo-mark.png"
+              alt=""
+              class="h-11 w-auto object-contain"
+              width="80"
+              height="44"
+            />
+            <span class="text-lg font-semibold tracking-tight text-white">Lexmora</span>
+          </RouterLink>
           <nav class="flex gap-1">
             <RouterLink
               v-for="link in links"
