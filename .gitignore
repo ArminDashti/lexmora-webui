@@ -16,3 +16,5 @@ vite.config.d.ts
 node_modules/@esbuild/win32-x64/esbuild.exe
 node_modules/typescript/lib/tsc.js
 node_modules/typescript/lib/typescript.js
+
+# === auto-managed large files (>5MB) ===
