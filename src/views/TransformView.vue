@@ -25,6 +25,7 @@ const language = ref('')
 const loading = ref(false)
 const optionsLoading = ref(true)
 const error = ref('')
+const pasteError = ref('')
 const result = ref<TransformResult | null>(null)
 
 const currentOp = computed<OperationOption | undefined>(() =>
@@ -40,8 +41,6 @@ const currentDirection = computed(() =>
 const modes = computed(() => currentDirection.value?.modes ?? [])
 
 const styles = computed(() => currentOp.value?.styles ?? [])
-
-const languages = computed(() => currentOp.value?.languages ?? [])
 
 const showMovieField = computed(
   () => operation.value === 'translate' && mode.value === 'movie'
@@ -63,6 +62,22 @@ const resultDate = computed(() =>
     ? formatLocalDateTime(result.value.created_at, result.value.formatted_date)
     : ''
 )
+
+const instructionLink = computed(() => {
+  if (!operation.value) return { name: 'instructions' as const }
+  const query: Record<string, string> = {}
+  if (operation.value === 'translate') {
+    if (direction.value) query.direction = direction.value
+    if (mode.value) query.mode = mode.value
+  } else if (operation.value === 'term' || operation.value === 'refine') {
+    if (style.value) query.style = style.value
+  }
+  return {
+    name: 'instructions' as const,
+    params: { operation: operation.value },
+    query,
+  }
+})
 
 function pickModeDefault(modeList: { value: string }[]): string {
   const general = modeList.find((m) => m.value.toLowerCase() === 'general')
@@ -107,14 +122,12 @@ function syncSecondaryFields() {
     style.value = ''
   }
 
-  if (op.languages?.length) {
-    if (!op.languages.some((l) => l.value === language.value)) {
-      language.value = op.languages[0].value
-    }
-  } else if (operation.value === 'term') {
+  if (operation.value === 'term') {
     if (language.value !== 'en' && language.value !== 'fa') {
       language.value = 'en'
     }
+  } else if (operation.value === 'compare') {
+    language.value = 'en'
   } else {
     language.value = ''
   }
@@ -156,9 +169,36 @@ async function loadOptions() {
   }
 }
 
+async function pasteFromClipboard() {
+  pasteError.value = ''
+  try {
+    if (!navigator.clipboard?.readText) {
+      pasteError.value = 'Clipboard paste is not available in this browser'
+      return
+    }
+    const clipped = await navigator.clipboard.readText()
+    if (!clipped) {
+      pasteError.value = 'Clipboard is empty'
+      return
+    }
+
+    if (operation.value === 'compare') {
+      if (!text1.value.trim()) text1.value = clipped
+      else if (!text2.value.trim()) text2.value = clipped
+      else text1.value = clipped
+      return
+    }
+
+    text.value = clipped
+  } catch {
+    pasteError.value = 'Could not read clipboard — allow paste permission and try again'
+  }
+}
+
 async function submit() {
   if (!canSubmit.value || loading.value) return
   error.value = ''
+  pasteError.value = ''
   result.value = null
   loading.value = true
 
@@ -169,14 +209,16 @@ async function submit() {
   if (operation.value === 'compare') {
     payload.text1 = text1.value
     payload.text2 = text2.value
-    if (language.value) payload.language = language.value
+    payload.language = 'en'
   } else {
     payload.text = text.value
 
     if (operation.value === 'translate') {
       payload.direction = direction.value
       payload.mode = mode.value
-      if (showMovieField.value) payload.movie_name = movieName.value
+      if (showMovieField.value && movieName.value.trim()) {
+        payload.movie_name = movieName.value.trim()
+      }
     } else if (operation.value === 'term') {
       payload.style = style.value
       if (language.value) payload.language = language.value
@@ -253,26 +295,18 @@ onMounted(loadOptions)
           </div>
         </template>
 
-        <template v-if="languages.length && operation !== 'term'">
-          <div class="w-full max-w-[11rem]">
-            <label class="mb-1 block text-sm text-gray-400">Language</label>
-            <select v-model="language" class="select-field select-compact">
-              <option v-for="l in languages" :key="l.value" :value="l.value">
-                {{ l.label === 'en' ? 'English' : l.label === 'fa' ? 'Persian' : l.label }}
-              </option>
-            </select>
-          </div>
-        </template>
-
-        <div class="ml-auto">
-          <RouterLink to="/instructions" class="btn-ghost inline-block text-sm">
+        <div class="ml-auto flex items-center gap-2">
+          <button class="btn-ghost text-sm" type="button" @click="pasteFromClipboard">
+            Paste
+          </button>
+          <RouterLink :to="instructionLink" class="btn-ghost inline-block text-sm">
             Instruction
           </RouterLink>
         </div>
       </div>
 
       <div v-if="showMovieField" class="max-w-md">
-        <label class="mb-1 block text-sm text-gray-400">Movie name</label>
+        <label class="mb-1 block text-sm text-gray-400">Movie name (optional)</label>
         <input v-model="movieName" class="input-field" placeholder="e.g. The Godfather" />
       </div>
 
@@ -313,6 +347,7 @@ onMounted(loadOptions)
         />
       </div>
 
+      <p v-if="pasteError" class="text-sm text-red-400">{{ pasteError }}</p>
       <p v-if="error" class="text-sm text-red-400">{{ error }}</p>
 
       <button class="btn-primary" type="submit" :disabled="loading || !canSubmit">
