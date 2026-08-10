@@ -18,3 +18,9 @@ node_modules/typescript/lib/tsc.js
 node_modules/typescript/lib/typescript.js
 
 # === auto-managed large files (>5MB) ===
+
+# BEGIN AUTO-MANAGED LARGE FILES (>5MB)
+node_modules/@esbuild/win32-x64/esbuild.exe
+node_modules/typescript/lib/tsc.js
+node_modules/typescript/lib/typescript.js
+# END AUTO-MANAGED LARGE FILES
