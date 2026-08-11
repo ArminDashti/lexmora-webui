@@ -9,7 +9,7 @@ Vue 3 SPA with dark theme, Vue Router, and Tailwind CSS.
 - `/login` — authentication
 - `/transform` — main operation UI (translate, simplify, term, refine, symptoms, compare)
 - `/history` — sortable table, row modal, delete
-- `/instructions` — edit per-key AI prompts (including `compare-en` / `compare-fa`)
+- `/instructions/:operation` — edit the instruction for the current Transform operation (query carries direction/mode/style; Compare uses `compare-en`)
 - `/stats` — usage counts by period (includes compare)
 - `/settings` — OpenRouter config and clear history
 
@@ -21,7 +21,7 @@ Vue 3 SPA with dark theme, Vue Router, and Tailwind CSS.
 | simplify / symptoms | `text` |
 | term | `text`, `language`, `style` |
 | refine | `text`, `style` |
-| compare | `text1`, `text2`, `language` (no `text`) |
+| compare | `text1`, `text2` (English only; no `text`) |
 
 ## Dev proxy
 

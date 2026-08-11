@@ -42,7 +42,7 @@ lexmora-webui/
 │   │   └── index.ts                    # Routes and auth guard
 │   ├── views/
 │   │   ├── HistoryView.vue             # Sortable history table
-│   │   ├── InstructionsView.vue        # Edit AI instruction prompts
+│   │   ├── InstructionsView.vue        # Edit instruction for current operation
 │   │   ├── LoginView.vue               # Login form
 │   │   ├── SettingsView.vue            # OpenRouter settings / clear data
 │   │   ├── StatsView.vue               # Usage stats by period

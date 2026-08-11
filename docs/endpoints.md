@@ -53,7 +53,7 @@ Derived from instruction keys:
 | `simplify-en` | Simplify |
 | `symptoms` | Symptoms |
 
-Create new modes/styles on the Instructions page (`POST /instructions` with `operation`, `direction`, `mode` / `style` / `language`).
+Create new modes/styles via `POST /instructions` with `operation`, `direction`, `mode` / `style` / `language`.
 
 ## Transform — `POST /api/v1/transform`
 
@@ -79,12 +79,12 @@ Only include fields relevant to the selected operation. Modes/styles must exist 
 
 | Operation | Required fields | History type |
 |-----------|-----------------|--------------|
-| `translate` | `text`, `direction`, `mode` (+ `movie_name` if mode is `movie`) | `en_fa` / `fa_en` |
+| `translate` | `text`, `direction`, `mode` (`movie_name` optional when mode is `movie`) | `en_fa` / `fa_en` |
 | `simplify` | `text` | `simplify` |
 | `term` | `text`, `style` (`language` optional) | `term_en` / `term_fa` |
 | `refine` | `text`, `style` | `refine` |
 | `symptoms` | `text` | `symptoms` |
-| `compare` | `text1`, `text2`, `language` | `compare_en` / `compare_fa` |
+| `compare` | `text1`, `text2` (`language` optional; defaults to `en`) | `compare_en` / `compare_fa` |
 
 ### Compare
 
@@ -99,9 +99,9 @@ Compare two words or phrases. Do not send `text`.
 }
 ```
 
-- `language`: explanation language (`en` or `fa`)
+- UI sends English only (`language: en`); API still accepts `fa`
 - History `input_text` is stored as `"ask vs request"`
-- Instruction keys: `compare-en`, `compare-fa`
+- Instruction key used by the UI: `compare-en`
 
 ### Stats
 

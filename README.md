@@ -60,7 +60,7 @@ Credentials are validated by the API; defaults are set in the API `.env`.
 - `/login` — authentication
 - `/transform` — main operation UI
 - `/history` — sortable table with detail modal
-- `/instructions` — edit per-key AI prompts
+- `/instructions/:operation` — edit the instruction for the selected Transform operation
 - `/stats` — usage counts by period
 - `/settings` — OpenRouter config and clear history
 
