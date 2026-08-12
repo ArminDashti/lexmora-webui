@@ -108,4 +108,20 @@
   .markdown-preview hr {
     @apply my-4 border-surface-border;
   }
+
+  .site-footer {
+    @apply grid shrink-0 grid-cols-[auto_1fr_auto] items-center gap-3 border-t border-surface-border px-5 py-3;
+  }
+
+  .site-footer-github {
+    @apply inline-flex min-h-10 min-w-10 items-center justify-center text-gray-200 transition hover:text-accent;
+  }
+
+  .site-footer-copy {
+    @apply m-0 justify-self-center text-center text-xs text-gray-500;
+  }
+
+  .site-footer-spacer {
+    @apply block h-10 w-10 justify-self-end;
+  }
 }

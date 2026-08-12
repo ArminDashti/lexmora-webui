@@ -4,6 +4,8 @@ import { api, type HistoryRecord } from '../api/client'
 import HistoryModal from '../components/HistoryModal.vue'
 import { formatLocalDateTime } from '../utils/datetime'
 
+const PAGE_SIZE = 50
+
 const HISTORY_TYPES = [
   { value: '', label: 'All types' },
   { value: 'simplify', label: 'Simplify' },
@@ -15,9 +17,13 @@ const HISTORY_TYPES = [
   { value: 'symptoms', label: 'Symptoms' },
   { value: 'compare_en', label: 'Compare English' },
   { value: 'compare_fa', label: 'Compare Persian' },
+  { value: 'grammar_en', label: 'Grammar English' },
+  { value: 'grammar_fa', label: 'Grammar Persian' },
 ]
 
 const items = ref<HistoryRecord[]>([])
+const total = ref(0)
+const page = ref(1)
 const loading = ref(true)
 const error = ref('')
 const sortBy = ref('datetime')
@@ -25,12 +31,20 @@ const sortOrder = ref('desc')
 const typeFilter = ref('')
 const fromDate = ref('')
 const toDate = ref('')
+const showResultColumn = ref(false)
 const selected = ref<HistoryRecord | null>(null)
 const checkedIds = ref<Set<string>>(new Set())
 const deleting = ref(false)
 
-const showFilters = computed(
-  () => items.value.length > 0 || !!typeFilter.value || !!fromDate.value || !!toDate.value
+const totalPages = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)))
+
+const showFilterFields = computed(
+  () =>
+    items.value.length > 0 ||
+    total.value > 0 ||
+    !!typeFilter.value ||
+    !!fromDate.value ||
+    !!toDate.value
 )
 
 const allChecked = computed(
@@ -43,17 +57,22 @@ function displayDate(item: HistoryRecord) {
   return formatLocalDateTime(item.created_at, item.formatted_date)
 }
 
-async function load() {
+async function load(resetPage = false) {
+  if (resetPage) page.value = 1
   loading.value = true
   error.value = ''
   try {
-    items.value = await api.getHistory({
+    const result = await api.getHistory({
       sort_by: sortBy.value,
       sort_order: sortOrder.value,
       type: typeFilter.value || undefined,
       from: fromDate.value || undefined,
       to: toDate.value || undefined,
+      limit: PAGE_SIZE,
+      offset: (page.value - 1) * PAGE_SIZE,
     })
+    items.value = result.items
+    total.value = result.total
     const visible = new Set(items.value.map((i) => i.id))
     checkedIds.value = new Set([...checkedIds.value].filter((id) => visible.has(id)))
   } catch (e) {
@@ -70,7 +89,7 @@ function toggleSort(column: string) {
     sortBy.value = column
     sortOrder.value = column === 'datetime' ? 'desc' : 'asc'
   }
-  load()
+  load(true)
 }
 
 function toggleCheck(id: string, event: Event) {
@@ -95,7 +114,7 @@ async function remove(id: string, event: Event) {
   if (!confirm('Delete this history entry?')) return
   try {
     await api.deleteHistory(id)
-    items.value = items.value.filter((i) => i.id !== id)
+    await load()
     const next = new Set(checkedIds.value)
     next.delete(id)
     checkedIds.value = next
@@ -117,7 +136,6 @@ async function removeChecked() {
   const failed = results.filter((r) => r.status === 'rejected').length
   const deleted = new Set(ids.filter((_, i) => results[i].status === 'fulfilled'))
 
-  items.value = items.value.filter((i) => !deleted.has(i.id))
   checkedIds.value = new Set([...checkedIds.value].filter((id) => !deleted.has(id)))
   if (selected.value && deleted.has(selected.value.id)) selected.value = null
 
@@ -125,6 +143,7 @@ async function removeChecked() {
     error.value = `Failed to delete ${failed} of ${ids.length} entries`
   }
   deleting.value = false
+  await load()
 }
 
 function sortIcon(column: string) {
@@ -136,20 +155,27 @@ function clearFilters() {
   typeFilter.value = ''
   fromDate.value = ''
   toDate.value = ''
+  load(true)
+}
+
+function goToPage(next: number) {
+  if (next < 1 || next > totalPages.value || next === page.value) return
+  page.value = next
   load()
 }
 
-onMounted(load)
+onMounted(() => load())
 </script>
 
 <template>
   <div class="space-y-6">
     <div v-if="error" class="text-sm text-red-400">{{ error }}</div>
 
-    <div v-if="showFilters" class="card flex flex-wrap items-end gap-3">
-      <div class="w-full max-w-[14rem]">
+    <div class="card flex flex-wrap items-end gap-3">
+      <template v-if="showFilterFields">
+        <div class="w-full max-w-[14rem]">
         <label class="mb-1 block text-sm text-gray-400">Type</label>
-        <select v-model="typeFilter" class="select-field select-compact" @change="load">
+        <select v-model="typeFilter" class="select-field select-compact" @change="load(true)">
           <option v-for="t in HISTORY_TYPES" :key="t.value || 'all'" :value="t.value">
             {{ t.label }}
           </option>
@@ -157,11 +183,11 @@ onMounted(load)
       </div>
       <div class="w-full max-w-[11rem]">
         <label class="mb-1 block text-sm text-gray-400">From</label>
-        <input v-model="fromDate" type="date" class="input-field" @change="load" />
+        <input v-model="fromDate" type="date" class="input-field" @change="load(true)" />
       </div>
       <div class="w-full max-w-[11rem]">
         <label class="mb-1 block text-sm text-gray-400">To</label>
-        <input v-model="toDate" type="date" class="input-field" @change="load" />
+        <input v-model="toDate" type="date" class="input-field" @change="load(true)" />
       </div>
       <button
         v-if="fromDate || toDate || typeFilter"
@@ -170,6 +196,14 @@ onMounted(load)
         @click="clearFilters"
       >
         Clear filters
+      </button>
+      </template>
+      <button
+        type="button"
+        class="btn-ghost text-sm"
+        @click="showResultColumn = !showResultColumn"
+      >
+        {{ showResultColumn ? 'Hide result' : 'Show result' }}
       </button>
       <button
         type="button"
@@ -200,7 +234,7 @@ onMounted(load)
                 Type {{ sortIcon('type') }}
               </th>
               <th class="px-4 py-3">Input</th>
-              <th class="px-4 py-3">Result</th>
+              <th v-if="showResultColumn" class="px-4 py-3">Result</th>
               <th class="cursor-pointer px-4 py-3 hover:text-white" @click="toggleSort('model')">
                 Model {{ sortIcon('model') }}
               </th>
@@ -212,10 +246,14 @@ onMounted(load)
           </thead>
           <tbody>
             <tr v-if="loading">
-              <td colspan="7" class="px-4 py-8 text-center text-gray-500">Loading...</td>
+              <td :colspan="showResultColumn ? 7 : 6" class="px-4 py-8 text-center text-gray-500">
+                Loading...
+              </td>
             </tr>
             <tr v-else-if="items.length === 0">
-              <td colspan="7" class="px-4 py-8 text-center text-gray-500">No history yet</td>
+              <td :colspan="showResultColumn ? 7 : 6" class="px-4 py-8 text-center text-gray-500">
+                No history yet
+              </td>
             </tr>
             <tr
               v-for="item in items"
@@ -239,7 +277,7 @@ onMounted(load)
                   item.input_text
                 }}</span>
               </td>
-              <td class="px-4 py-3">
+              <td v-if="showResultColumn" class="px-4 py-3">
                 <span class="table-cell-truncate block" :title="item.result_text">{{
                   item.result_text
                 }}</span>
@@ -260,6 +298,33 @@ onMounted(load)
             </tr>
           </tbody>
         </table>
+      </div>
+    </div>
+
+    <div
+      v-if="total > PAGE_SIZE"
+      class="flex flex-wrap items-center justify-between gap-3 text-sm text-gray-400"
+    >
+      <span>
+        Page {{ page }} of {{ totalPages }} · {{ total }} entries
+      </span>
+      <div class="flex gap-2">
+        <button
+          type="button"
+          class="btn-ghost px-3 py-1 text-sm"
+          :disabled="page <= 1 || loading"
+          @click="goToPage(page - 1)"
+        >
+          Previous
+        </button>
+        <button
+          type="button"
+          class="btn-ghost px-3 py-1 text-sm"
+          :disabled="page >= totalPages || loading"
+          @click="goToPage(page + 1)"
+        >
+          Next
+        </button>
       </div>
     </div>
 

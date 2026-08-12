@@ -29,3 +29,5 @@ node_modules/typescript/lib/typescript.js
 node_modules/@esbuild/win32-x64/esbuild.exe
 node_modules/typescript/lib/tsc.js
 node_modules/typescript/lib/typescript.js
+
+# github-commit-push-all: auto-ignore large files (>5MB)

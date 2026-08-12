@@ -75,6 +75,8 @@ export const api = {
     type?: string
     from?: string
     to?: string
+    limit?: number
+    offset?: number
   }) => {
     const q = new URLSearchParams()
     if (params.sort_by) q.set('sort_by', params.sort_by)
@@ -82,7 +84,9 @@ export const api = {
     if (params.type) q.set('type', params.type)
     if (params.from) q.set('from', params.from)
     if (params.to) q.set('to', params.to)
-    return request<HistoryRecord[]>(`/history?${q}`)
+    if (params.limit != null) q.set('limit', String(params.limit))
+    if (params.offset != null) q.set('offset', String(params.offset))
+    return request<HistoryPage>(`/history?${q}`)
   },
 
   getHistoryItem: (id: string) => request<HistoryRecord>(`/history/${id}`),
@@ -171,6 +175,13 @@ export interface CreateInstructionPayload {
   content?: string
 }
 
+export interface HistoryPage {
+  items: HistoryRecord[]
+  total: number
+  limit: number
+  offset: number
+}
+
 export interface HistoryRecord {
   id: string
   type: string
@@ -192,6 +203,7 @@ export interface StatsBucket {
   refine: number
   symptoms: number
   compare: number
+  grammar: number
   total: number
 }
 

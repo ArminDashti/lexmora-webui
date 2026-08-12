@@ -22,6 +22,7 @@ const categories = [
   { key: 'refine' as const, label: 'Refine' },
   { key: 'symptoms' as const, label: 'Symptoms' },
   { key: 'compare' as const, label: 'Compare' },
+  { key: 'grammar' as const, label: 'Grammar' },
 ]
 
 onMounted(async () => {

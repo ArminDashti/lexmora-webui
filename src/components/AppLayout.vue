@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { RouterLink, RouterView, useRoute } from 'vue-router'
 import { clearAuth, getUsername } from '../api/client'
+import SiteFooter from './SiteFooter.vue'
 
 const route = useRoute()
 const username = getUsername() || 'armin'
@@ -19,7 +20,7 @@ function logout() {
 </script>
 
 <template>
-  <div class="min-h-screen bg-surface">
+  <div class="flex min-h-screen flex-col bg-surface">
     <header class="border-b border-surface-border bg-surface-raised">
       <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
         <div class="flex items-center gap-8">
@@ -59,8 +60,9 @@ function logout() {
         </div>
       </div>
     </header>
-    <main class="mx-auto max-w-6xl px-4 py-8">
+    <main class="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
       <RouterView />
     </main>
+    <SiteFooter />
   </div>
 </template>

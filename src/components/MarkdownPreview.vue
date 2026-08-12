@@ -7,6 +7,7 @@ import { textDir } from '../utils/textDirection'
 const props = defineProps<{
   content: string
   class?: string
+  dir?: 'rtl' | 'ltr' | 'auto'
 }>()
 
 marked.setOptions({ breaks: true, gfm: true })
@@ -16,7 +17,10 @@ const html = computed(() => {
   return DOMPurify.sanitize(raw)
 })
 
-const dir = computed(() => textDir(props.content || ''))
+const dir = computed(() => {
+  if (props.dir && props.dir !== 'auto') return props.dir
+  return textDir(props.content || '')
+})
 </script>
 
 <template>

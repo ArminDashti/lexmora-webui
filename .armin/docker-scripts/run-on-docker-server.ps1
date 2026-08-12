@@ -456,7 +456,7 @@ try {
     Invoke-Remote -Target $target -RemoteCommand "${envPrefix}docker compose -p '$stackName' $composeFilesArg --project-directory '$volumeDir' up -d"
     Write-Ok "Stack deployed at $volumeDir on $($target.LogTarget)"
     if ([string]::IsNullOrWhiteSpace($publishPort)) {
-        Write-Ok 'Public URL: https://lexmora-api.xaigrok.ir (HAProxy → lexmora-api:8080 on t3-net)'
+        Write-Ok 'Public URL: https://lexmora.xaigrok.ir (HAProxy -> lexmora-webui:80 on t3-net)'
     }
 }
 catch {
