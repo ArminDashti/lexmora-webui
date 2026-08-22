@@ -23,6 +23,12 @@ export function isAuthenticated(): boolean {
   return !!getToken()
 }
 
+function withBase(path: string): string {
+  const base = (import.meta.env.BASE_URL || '/').replace(/\/$/, '')
+  if (!base || base === '/') return path
+  return `${base}${path.startsWith('/') ? path : `/${path}`}`
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -34,11 +40,11 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     headers.Authorization = `Bearer ${token}`
   }
 
-  const res = await fetch(`/api/v1${path}`, { ...options, headers })
+  const res = await fetch(withBase(`/api/v1${path}`), { ...options, headers })
 
   if (res.status === 401) {
     clearAuth()
-    window.location.href = '/login'
+    window.location.href = `${(import.meta.env.BASE_URL || '/').replace(/\/$/, '')}/login`
     throw new Error('Unauthorized')
   }
 
